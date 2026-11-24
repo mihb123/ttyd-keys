@@ -28,7 +28,7 @@ Phiên bản lấy từ `pubspec.lock`, `.github/workflows/build.yml` (2026-11-2
 
 | Công nghệ | Dùng để |
 |---|---|
-| GitHub Actions (`.github/workflows/build.yml`) | Build `.ipa` chưa ký (`macos-latest`) và `.apk` (`ubuntu-latest`) khi push `main` |
+| GitHub Actions (`.github/workflows/build.yml`, `build-android.yml`) | Build `.ipa` chưa ký (`macos-latest`) khi push `main`; `.apk` (`ubuntu-latest`) khi chạy `make android-apk` |
 | `scripts/pull-build.sh` (`gh`) | Tải artifact của run mới nhất |
 | Impactor | Ký `.ipa` bằng Apple ID và cài qua USB |
 

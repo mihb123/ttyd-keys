@@ -22,7 +22,7 @@ lib/              toàn bộ code Dart (11 file, xem docs/architecture.md)
 assets/fonts/     font terminal JetBrains Mono Nerd Font Mono (OFL)
 scripts/          pull-build.sh: tải artifact theo commit; install-build.sh: cài lên máy qua USB
 ios/, android/    project native (Flutter sinh)
-.github/          workflows/build.yml: job ios, android
+.github/          workflows/build.yml (iOS, khi push), build-android.yml (Android, khi gọi)
 docs/             tài liệu
 ```
 
@@ -31,9 +31,9 @@ docs/             tài liệu
 ```bash
 make get            # flutter pub get
 make analyze        # lint
-git push            # GitHub Actions build khi push main
+git push            # GitHub Actions build iOS khi push main
 make install-ios    # tải .ipa của commit hiện tại, ký Apple ID, cài lên iPhone cắm USB
-make install-android # tải .apk của commit hiện tại, cài qua adb
+make install-android # build .apk trên GitHub (nếu chưa có), tải về, cài qua adb
 make ios-ipa        # chỉ tải .ipa về build-ios/ (cần gh đã đăng nhập)
 ```
 

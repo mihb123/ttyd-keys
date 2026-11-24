@@ -15,9 +15,9 @@
 | `make get` | `flutter pub get` |
 | `make analyze` | `flutter analyze` (lint) |
 | `make install-ios` | Lấy `.ipa` của commit hiện tại, ký bằng Apple ID và cài lên iPhone cắm USB (`scripts/install-build.sh`) |
-| `make install-android` | Lấy `.apk` của commit hiện tại và `adb install -r` |
+| `make install-android` | Như `make android-apk`, rồi `adb install -r` |
 | `make ios-ipa` | Chỉ tải `.ipa` chưa ký của commit hiện tại về `build-ios/`, chờ nếu đang build |
-| `make android-apk` | Chỉ tải `.apk` của commit hiện tại về `build-android/` |
+| `make android-apk` | Build `.apk` trên GitHub Actions nếu commit chưa có (`build-android.yml`, ~8 phút), chờ xong rồi tải về `build-android/` |
 | `make docs-check` | Kiểm link tương đối, khung mục `docs/feature/*.md`, cú pháp mermaid (`scripts/check-docs.py` + mermaid-check) |
 
 Chạy trên thiết bị khi có máy dev nối điện thoại/emulator: `flutter run`.
@@ -43,7 +43,9 @@ Chỉ `scripts/pull-build.sh`, `scripts/install-build.sh` và `Makefile` đọc;
 
 Tên file: `TtydKeys-<số run>-<sha 7 ký tự>-unsigned.ipa` / `TtydKeys-<số run>-<sha>.apk` (CI đặt sẵn; artifact cũ chưa có sha thì `pull-build.sh` đổi tên khi lưu).
 
-Build gắn với commit: `pull-build.sh` lấy commit gần nhất tính từ `REF` có đổi file build (`lib`, `assets`, `ios`, `android`, `pubspec.*`, `build.yml`, khớp `on.push.paths`), tìm run bằng `gh run list -c <sha>`. Commit chỉ sửa docs/scripts dùng lại build của commit build trước đó. File đã có trong `build-<platform>/` thì không tải lại. Commit chưa push hoặc run bị huỷ thì báo lỗi.
+Build gắn với commit: `pull-build.sh` lấy commit gần nhất tính từ `REF` có đổi file build (`lib`, `assets`, `ios`, `android`, `pubspec.*`, `build.yml`, khớp `on.push.paths`), rồi lấy run mới nhất của workflow (`build.yml` cho iOS, `build-android.yml` cho Android) có `headSha` cùng bản build đó (chính commit đó hoặc commit sau chỉ sửa docs/scripts). File đã có trong `build-<platform>/` thì không tải lại.
+
+Không có run: iOS báo lỗi (chưa push). Android tự `gh workflow run build-android.yml --ref main` rồi chờ, với điều kiện `origin/main` đang ở đúng bản build đó (chưa push hoặc `main` đã có code mới hơn thì báo lỗi). Run hỏng/huỷ thì báo lỗi kèm lệnh `gh run rerun`.
 
 ## 3. CI/CD (GitHub Actions)
 
@@ -51,18 +53,20 @@ Build gắn với commit: `pull-build.sh` lấy commit gần nhất tính từ `
 flowchart LR
     Push["push main"] --> CM{"Có đổi lib/, assets/, ios/, android/, pubspec.*, build.yml?"}
     CM -->|"không"| Skip["Không build"]
-    CM -->|"có"| IOS["job ios (macos-latest): flutter build ios --no-codesign, zip Payload thành .ipa"]
-    CM -->|"có"| AND["job android (ubuntu-latest): flutter build apk --release"]
+    CM -->|"có"| IOS["build.yml, job ios (macos-latest): flutter build ios --no-codesign, zip Payload thành .ipa"]
     IOS --> Pull["make install-ios: tải .ipa theo commit"]
-    AND --> PullA["make install-android: tải .apk theo commit"]
+    MA["make android-apk / install-android"] --> Has{"Đã có run Android cho bản build này?"}
+    Has -->|"chưa"| AND["gh workflow run build-android.yml: job android (ubuntu-latest), flutter build apk --release"]
+    Has -->|"có"| PullA["tải .apk theo commit"]
+    AND --> PullA
     Pull --> Imp["plumesign ký Apple ID + cài qua USB"]
     PullA --> Phone["adb install -r"]
 ```
 
-- Workflow: `.github/workflows/build.yml`; chạy tay: `gh workflow run build.yml -R mihb123/ttyd-keys`.
-- Run mới huỷ run cũ cùng nhánh (`concurrency`); số build = `github.run_number`. Artifact giữ 14 ngày.
-- Giới hạn: iOS 45 phút, Android 30 phút. Repo private: phút macOS tính hệ số 10 vào quota Actions miễn phí.
-- Sửa chỉ tài liệu, `Makefile`, `scripts/`, `analysis_options.yaml` không kích hoạt build.
+- Workflow: `.github/workflows/build.yml` (iOS, tự chạy khi push `main`) và `.github/workflows/build-android.yml` (Android, chỉ `workflow_dispatch`). Chạy tay: `gh workflow run build.yml -R mihb123/ttyd-keys` / `gh workflow run build-android.yml -R mihb123/ttyd-keys`.
+- Run mới huỷ run cũ cùng nhánh, mỗi workflow riêng (`concurrency`). Số build iOS = `github.run_number`; `versionCode` Android = số commit trên `main` (`git rev-list --count HEAD`, cần `fetch-depth: 0`) để không lùi so với `.apk` cũ. Artifact giữ 14 ngày.
+- Giới hạn: iOS 45 phút, Android 30 phút. Repo public nên runner chuẩn (`macos-latest`, `ubuntu-latest`) miễn phí, không trừ quota; chuyển lại private thì phút macOS tính hệ số 10. Job iOS có thể xếp hàng vài phút chờ runner macOS.
+- Sửa chỉ tài liệu, `Makefile`, `scripts/`, `analysis_options.yaml`, `build-android.yml` không kích hoạt build.
 
 ## 4. Cài lên iPhone
 

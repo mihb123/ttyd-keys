@@ -1,0 +1,40 @@
+# Android chỉ build khi được gọi: make android-apk / make install-android (scripts/pull-build.sh)
+# hoặc gh workflow run build-android.yml. Push main không chạy workflow này.
+name: build-android
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: build-android-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  FLUTTER_VERSION: 3.50.1
+
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      # versionCode = số commit trên main: tăng dần, không lùi so với apk cũ (build từ build.yml, số run ≤ 3).
+      - run: flutter build apk --release --build-number=$(git rev-list --count HEAD)
+      - run: mv build/app/outputs/flutter-apk/app-release.apk "build/app/outputs/flutter-apk/TtydKeys-${{ github.run_number }}-${GITHUB_SHA::7}.apk"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: ttyd-keys-android
+          path: build/app/outputs/flutter-apk/TtydKeys-*.apk
+          retention-days: 14

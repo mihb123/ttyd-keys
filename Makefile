@@ -18,13 +18,13 @@ analyze: ## flutter analyze
 ios-ipa: ## Tải .ipa của commit hiện tại từ GitHub Actions về build-ios/ (chờ nếu đang build)
 	PLATFORM=ios ./scripts/pull-build.sh
 
-android-apk: ## Tải .apk của commit hiện tại về build-android/
+android-apk: ## Build .apk trên GitHub Actions (nếu commit chưa có) rồi tải về build-android/
 	PLATFORM=android ./scripts/pull-build.sh
 
 install-ios: ## Tải .ipa của commit hiện tại, ký bằng Apple ID và cài lên iPhone cắm USB
 	PLATFORM=ios ./scripts/install-build.sh
 
-install-android: ## Tải .apk của commit hiện tại và cài lên máy Android qua adb
+install-android: ## Như android-apk, rồi cài lên máy Android qua adb
 	PLATFORM=android ./scripts/install-build.sh
 
 docs-check: ## Kiểm link, khung mục docs/feature, mermaid (bỏ qua mermaid nếu thiếu NODE/MERMAID_CHECK)

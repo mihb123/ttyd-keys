@@ -17,14 +17,14 @@
 |---|---|
 | `make analyze` | Sau mỗi thay đổi Dart, phải sạch |
 | `make docs-check` | Sau mỗi thay đổi `.md`, phải sạch |
-| `make ios-ipa` / `make android-apk` | Lấy bản build sau khi push `main` |
+| `make ios-ipa` / `make android-apk` | Lấy bản build sau khi push `main` (iOS tự build khi push; Android build khi chạy lệnh) |
 
 ## Quy tắc code
 
 - Import widget từ `package:material_ui/material_ui.dart` như code hiện có.
 - Giữ ranh giới module trong [docs/architecture.md](docs/architecture.md#2-module) (vd `ttyd_client.dart` không import Flutter).
 - Thông báo cho người dùng bằng tiếng Việt.
-- Không commit/push khi chưa được yêu cầu; push `main` sẽ kích hoạt build GitHub Actions.
+- Không commit/push khi chưa được yêu cầu; push `main` sẽ kích hoạt build iOS trên GitHub Actions.
 
 ## Cập nhật tài liệu sau mỗi thay đổi
 
