@@ -1,50 +1,30 @@
 #!/bin/sh
 set -eu
 
-env_file=${TTYD_KEYS_CODEMAGIC_ENV:-$HOME/.config/ttyd-keys/codemagic.env}
-[ -r "$env_file" ] && . "$env_file"
-: "${CODEMAGIC_API_TOKEN:?Thiếu CODEMAGIC_API_TOKEN (đặt trong $env_file)}"
-: "${CODEMAGIC_APP_ID:?Thiếu CODEMAGIC_APP_ID (đặt trong $env_file)}"
-app_id=$CODEMAGIC_APP_ID
-workflow=${WORKFLOW:-ios-unsigned}
+platform=${PLATFORM:-ios}
 branch=${BRANCH:-main}
 wait=${WAIT:-1}
-case $workflow in
-  android-apk) ext=apk; out_dir=${OUT_DIR:-$HOME/Downloads/ttyd-keys-android} ;;
-  *) ext=ipa; out_dir=${OUT_DIR:-$HOME/Downloads/ttyd-keys-ios} ;;
-esac
-
-api() {
-  curl -fsSL -H "x-auth-token: $CODEMAGIC_API_TOKEN" "$@"
-}
+out_dir=${OUT_DIR:-$HOME/Downloads/ttyd-keys-$platform}
+repo=${REPO:-mihb123/ttyd-keys}
 
 latest() {
-  api "https://api.codemagic.io/builds?appId=$app_id&branch=$branch" |
-    jq -c --arg wf "$workflow" '[.builds[] | select((.fileWorkflowId // .workflowId) == $wf and .status != "skipped")] | sort_by(.createdAt) | last // empty'
+  gh run list -R "$repo" -w build.yml -b "$branch" -L 1 --json databaseId,status,conclusion,number \
+    --jq '.[0] // empty | "\(.databaseId) \(.status) \(.conclusion) \(.number)"'
 }
 
-build=$(latest)
-[ -n "$build" ] || { echo "Chưa có build $workflow trên nhánh $branch" >&2; exit 1; }
-
-while :; do
-  status=$(printf '%s' "$build" | jq -r .status)
-  case $status in
-    finished) break ;;
-    failed | canceled | skipped | timeout)
-      echo "Build #$(printf '%s' "$build" | jq -r .index) kết thúc với trạng thái $status" >&2
-      exit 1 ;;
-  esac
-  [ "$wait" = 1 ] || { echo "Build mới nhất đang $status, chạy lại sau hoặc bỏ WAIT=0" >&2; exit 1; }
-  echo "Build #$(printf '%s' "$build" | jq -r .index) đang $status, chờ 30s..."
+run=$(latest)
+[ -n "$run" ] || { echo "Chưa có run build.yml trên nhánh $branch" >&2; exit 1; }
+set -- $run
+while [ "$2" != completed ]; do
+  [ "$wait" = 1 ] || { echo "Run #$4 đang $2, chạy lại sau hoặc bỏ WAIT=0" >&2; exit 1; }
+  echo "Run #$4 đang $2, chờ 30s..."
   sleep 30
-  build=$(latest)
+  set -- $(latest)
 done
 
-url=$(printf '%s' "$build" | jq -r --arg ext ".$ext" '[.artefacts[]? | select(.name | endswith($ext))][0].url // empty')
-[ -n "$url" ] || { echo "Build không có file .$ext" >&2; exit 1; }
-sha=$(printf '%s' "$build" | jq -r '.commit.hash // "" | .[0:7]')
-name=$(basename "$url" ".$ext")${sha:+-$sha}.$ext
+job_ok=$(gh run view "$1" -R "$repo" --json jobs --jq ".jobs[] | select(.name == \"$platform\") | .conclusion")
+[ "$job_ok" = success ] || { echo "Job $platform của run #$4 kết thúc: ${job_ok:-không có}" >&2; exit 1; }
 
 mkdir -p "$out_dir"
-api -o "$out_dir/$name" "$url"
-ls -l "$out_dir/$name"
+gh run download "$1" -R "$repo" -n "ttyd-keys-$platform" -D "$out_dir"
+ls -lt "$out_dir" | head -3

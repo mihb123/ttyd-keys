@@ -11,15 +11,15 @@ App Flutter (iOS + Android) làm terminal native cho ttyd sau ttyd-auth (`remote
 
 ## Stack
 
-Flutter 3.50.1, `xterm` 4, `flutter_secure_storage`, `shared_preferences`; build trên Codemagic. Chi tiết: [docs/techstack.md](docs/techstack.md).
+Flutter 3.50.1, `xterm` 4, `flutter_secure_storage`, `shared_preferences`; build trên GitHub Actions. Chi tiết: [docs/techstack.md](docs/techstack.md).
 
 ## Cấu trúc
 
 ```text
 lib/              toàn bộ code Dart (8 file, xem docs/architecture.md)
-scripts/          pull-build.sh: tải artifact Codemagic
+scripts/          pull-build.sh: tải artifact GitHub Actions
 ios/, android/    project native (Flutter sinh)
-codemagic.yaml    workflow ios-unsigned, android-apk
+.github/          workflows/build.yml: job ios, android
 docs/             tài liệu
 ```
 
@@ -28,8 +28,8 @@ docs/             tài liệu
 ```bash
 make get            # flutter pub get
 make analyze        # lint
-git push            # Codemagic build khi push main
-make ios-ipa        # tải .ipa chưa ký mới nhất (cần ~/.config/ttyd-keys/codemagic.env)
+git push            # GitHub Actions build khi push main
+make ios-ipa        # tải .ipa chưa ký mới nhất (cần gh đã đăng nhập)
 make android-apk    # tải .apk
 ```
 

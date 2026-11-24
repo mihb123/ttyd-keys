@@ -1,6 +1,6 @@
 # Tài liệu ttyd keys
 
-App Flutter (iOS + Android) làm terminal native cho ttyd sau ttyd-auth, kèm thanh phím Esc/Tab/Ctrl/Alt/Shift/mũi tên. Không có backend trong repo; build qua Codemagic.
+App Flutter (iOS + Android) làm terminal native cho ttyd sau ttyd-auth, kèm thanh phím Esc/Tab/Ctrl/Alt/Shift/mũi tên. Không có backend trong repo; build qua GitHub Actions.
 
 ## Bắt đầu từ đâu
 
@@ -22,7 +22,7 @@ App Flutter (iOS + Android) làm terminal native cho ttyd sau ttyd-auth, kèm th
 1. **[architecture.md](architecture.md)** — sơ đồ tổng thể, module, màn hình, luồng dữ liệu, bảo mật.
 2. **[techstack.md](techstack.md)** — Flutter, package, CI kèm phiên bản.
 3. **[api_specifications.md](api_specifications.md)** — HTTP đăng nhập, WebSocket và khung tin nhắn ttyd.
-4. **[deployment_guide.md](deployment_guide.md)** — lệnh `make`, biến môi trường, Codemagic, cài iPhone.
+4. **[deployment_guide.md](deployment_guide.md)** — lệnh `make`, biến môi trường, GitHub Actions, cài iPhone.
 5. **[testing.md](testing.md)** — lint, checklist thủ công.
 
 ### Tính năng
@@ -46,7 +46,7 @@ App Flutter (iOS + Android) làm terminal native cho ttyd sau ttyd-auth, kèm th
 | Thanh phím + modifier dính + lặp phím | Xong |
 | Nhập từ bàn phím ảo | Xong |
 | Cài đặt (cỡ chữ, lệnh tự chạy, nhớ mật khẩu) | Xong |
-| Build iOS/Android trên Codemagic | Xong |
+| Build iOS/Android trên GitHub Actions | Xong |
 | Unit test | Chưa làm |
 | Nhiều host / nhiều tab | Chưa làm |
 

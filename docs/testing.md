@@ -4,7 +4,7 @@
 |---|---|---|
 | Lint / phân tích tĩnh | `make analyze` | Mỗi thay đổi Dart |
 | Tài liệu | `make docs-check` | Mỗi thay đổi `.md` |
-| Build thật | push `main` → Codemagic, `make ios-ipa` / `make android-apk` | Trước khi cài lên máy |
+| Build thật | push `main` → GitHub Actions, `make ios-ipa` / `make android-apk` | Trước khi cài lên máy |
 | Thủ công trên điện thoại | checklist bên dưới | Thay đổi kết nối, bàn phím, thanh phím |
 
 Chưa có thư mục `test/`. Chỗ nên thêm unit test đầu tiên (`flutter test`): `applyModifiers`, `Modifiers`, `FixedKeyHandler`, `normalizeHost` (đều public, không cần widget). `_onMessage` là private, muốn test phải tách parser khung ra hàm public.

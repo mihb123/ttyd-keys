@@ -24,7 +24,7 @@
 - Import widget từ `package:material_ui/material_ui.dart` như code hiện có.
 - Giữ ranh giới module trong [docs/architecture.md](docs/architecture.md#2-module) (vd `ttyd_client.dart` không import Flutter).
 - Thông báo cho người dùng bằng tiếng Việt.
-- Không commit/push khi chưa được yêu cầu; push `main` sẽ kích hoạt build Codemagic.
+- Không commit/push khi chưa được yêu cầu; push `main` sẽ kích hoạt build GitHub Actions.
 
 ## Cập nhật tài liệu sau mỗi thay đổi
 
@@ -38,7 +38,7 @@ Làm xong một tính năng, sửa lỗi hoặc cải thiện thì cập nhật 
 | Endpoint, khung WS, timeout | `docs/api_specifications.md` |
 | Key lưu trữ, mặc định cài đặt | Bảng trong `docs/feature/cai-dat.md` |
 | Package, phiên bản Flutter | `docs/techstack.md` |
-| Lệnh `make`, biến môi trường, `codemagic.yaml` | `docs/deployment_guide.md` |
+| Lệnh `make`, biến môi trường, `.github/workflows/build.yml` | `docs/deployment_guide.md` |
 | Màn hình mới | Bảng Màn hình trong `docs/architecture.md` |
 | Xong/đổi trạng thái một mục | Bảng Trạng thái tính năng + ngày trong `docs/index.md` |
 | Phát hiện lỗi chưa sửa | Mục "Còn để lại" của feature tương ứng |

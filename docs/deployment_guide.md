@@ -3,8 +3,7 @@
 ## Yêu cầu
 
 - Flutter 3.50.1 (máy dev: `~/flutter`, Makefile tự tìm `flutter` trong `PATH` trước).
-- `curl`, `jq` cho `make ios-ipa` / `make android-apk`.
-- Token Codemagic trong `~/.config/ttyd-keys/codemagic.env`.
+- `gh` đã đăng nhập (đọc được repo `mihb123/ttyd-keys`) cho `make ios-ipa` / `make android-apk`.
 - Cài iOS: Impactor + cáp USB + Apple ID.
 
 ## 1. Lệnh hằng ngày
@@ -26,37 +25,36 @@ Chỉ `scripts/pull-build.sh` và `Makefile` đọc; app không đọc biến m�
 
 | Biến | Mặc định | Ý nghĩa |
 |---|---|---|
-| `CODEMAGIC_API_TOKEN` | — (bắt buộc) | Token API Codemagic |
-| `CODEMAGIC_APP_ID` | — (bắt buộc) | ID app trên Codemagic |
-| `TTYD_KEYS_CODEMAGIC_ENV` | `~/.config/ttyd-keys/codemagic.env` | File chứa 2 biến trên |
-| `WORKFLOW` | `ios-unsigned` | `ios-unsigned` hoặc `android-apk` (Makefile tự đặt) |
+| `PLATFORM` | `ios` | `ios` hoặc `android` (Makefile tự đặt) |
 | `BRANCH` | `main` | Nhánh lấy build |
-| `WAIT` | `1` | `1` = chờ build đang chạy (kiểm mỗi 30 s), `0` = báo lỗi ngay |
+| `WAIT` | `1` | `1` = chờ run đang chạy (kiểm mỗi 30 s), `0` = báo lỗi ngay |
 | `OUT_DIR` | `~/Downloads/ttyd-keys-ios` / `-android` | Thư mục lưu file |
+| `REPO` | `mihb123/ttyd-keys` | Repo GitHub lấy artifact |
 | `FLUTTER` (Makefile) | `flutter` trong `PATH`, không có thì `~/flutter/bin/flutter` | Binary Flutter |
 | `NODE` (Makefile) | `node` trong `PATH`, không có thì bản mới nhất trong `~/.nvm` | Chạy kiểm mermaid |
 | `MERMAID_CHECK` (Makefile) | `~/.claude/tools/mermaid-check/check-mermaid.mjs` | Thiếu thì `docs-check` bỏ qua mermaid kèm cảnh báo |
 
-Tên file tải về: tên artifact + `-<7 ký tự commit>` (vd `TtydKeys-12-unsigned-25e9d64.ipa`).
+Tên file tải về: `TtydKeys-<số run>-unsigned.ipa` / `TtydKeys-<số run>.apk`.
 
-## 3. CI/CD (Codemagic)
+## 3. CI/CD (GitHub Actions)
 
 ```mermaid
 flowchart LR
-    Push["push main"] --> CM{"Có đổi lib/, ios/, android/, pubspec.*, codemagic.yaml?"}
+    Push["push main"] --> CM{"Có đổi lib/, ios/, android/, pubspec.*, build.yml?"}
     CM -->|"không"| Skip["Không build"]
-    CM -->|"có"| IOS["ios-unsigned: flutter build ios --no-codesign, zip Payload thành .ipa"]
-    CM -->|"có"| AND["android-apk: flutter build apk --release"]
+    CM -->|"có"| IOS["job ios (macos-latest): flutter build ios --no-codesign, zip Payload thành .ipa"]
+    CM -->|"có"| AND["job android (ubuntu-latest): flutter build apk --release"]
     IOS --> Pull["make ios-ipa"]
     AND --> PullA["make android-apk"]
     Pull --> Imp["Impactor ký + cài qua USB"]
     PullA --> Phone["Cài .apk lên Android"]
 ```
 
-- Build mới huỷ build cũ đang chạy (`cancel_previous_builds`); số build = `$BUILD_NUMBER` của Codemagic.
-- Giới hạn: iOS 45 phút (`mac_mini_m2`), Android 30 phút (`linux_x2`).
-- Sửa chỉ tài liệu (`**/*.md`), `Makefile`, `scripts/`, `analysis_options.yaml` không kích hoạt build.
+- Workflow: `.github/workflows/build.yml`; chạy tay: `gh workflow run build.yml -R mihb123/ttyd-keys`.
+- Run mới huỷ run cũ cùng nhánh (`concurrency`); số build = `github.run_number`. Artifact giữ 14 ngày.
+- Giới hạn: iOS 45 phút, Android 30 phút. Repo private: phút macOS tính hệ số 10 vào quota Actions miễn phí.
+- Sửa chỉ tài liệu, `Makefile`, `scripts/`, `analysis_options.yaml` không kích hoạt build.
 
 ## 4. Cài lên iPhone
 
-Hướng dẫn chung dùng Impactor (Ubuntu + Apple ID miễn phí): `~/thu-chi/docs/ios-codemagic.md`, phần "Phần cho người dùng". Lưu ý (theo tài liệu đó): bản ký bằng Apple ID miễn phí hết hạn sau 7 ngày; cài đè lại bằng Impactor (cùng Apple ID, không gỡ app) thì dữ liệu vẫn giữ.
+Hướng dẫn chung dùng Impactor (Ubuntu + Apple ID miễn phí): `~/thu-chi/docs/ios-codemagic.md`, phần "Phần cho người dùng" (bỏ qua phần Codemagic, file `.ipa` lấy bằng `make ios-ipa`). Lưu ý (theo tài liệu đó): bản ký bằng Apple ID miễn phí hết hạn sau 7 ngày; cài đè lại bằng Impactor (cùng Apple ID, không gỡ app) thì dữ liệu vẫn giữ.
