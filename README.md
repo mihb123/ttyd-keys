@@ -17,7 +17,7 @@ Flutter 3.50.1, `xterm` 4, `flutter_secure_storage`, `shared_preferences`; build
 
 ```text
 lib/              toàn bộ code Dart (8 file, xem docs/architecture.md)
-scripts/          pull-build.sh: tải artifact GitHub Actions
+scripts/          pull-build.sh: tải artifact theo commit; install-build.sh: cài lên máy qua USB
 ios/, android/    project native (Flutter sinh)
 .github/          workflows/build.yml: job ios, android
 docs/             tài liệu
@@ -29,11 +29,12 @@ docs/             tài liệu
 make get            # flutter pub get
 make analyze        # lint
 git push            # GitHub Actions build khi push main
-make ios-ipa        # tải .ipa chưa ký mới nhất (cần gh đã đăng nhập)
-make android-apk    # tải .apk
+make install-ios    # tải .ipa của commit hiện tại, ký Apple ID, cài lên iPhone cắm USB
+make install-android # tải .apk của commit hiện tại, cài qua adb
+make ios-ipa        # chỉ tải .ipa về build-ios/ (cần gh đã đăng nhập)
 ```
 
-Ký và cài lên iPhone: [docs/deployment_guide.md](docs/deployment_guide.md#4-cài-lên-iphone).
+Chi tiết cài lên iPhone: [docs/deployment_guide.md](docs/deployment_guide.md#4-cài-lên-iphone).
 
 ## Tài liệu
 
