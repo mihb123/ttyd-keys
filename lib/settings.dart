@@ -1,14 +1,16 @@
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+const defaultStartupCommand = 'tmux new -A -s mobile';
+
 class Settings {
   Settings({
     this.host = 'remote-ocl.mihb.site',
     this.username = '',
     this.password = '',
-    this.rememberPassword = true,
+    this.rememberPassword = false,
     this.fontSize = 14,
-    this.startupCommand = '',
+    this.startupCommand = defaultStartupCommand,
   });
 
   String host;
@@ -25,9 +27,9 @@ class Settings {
     final s = Settings(
       host: p.getString('host') ?? 'remote-ocl.mihb.site',
       username: p.getString('username') ?? '',
-      rememberPassword: p.getBool('rememberPassword') ?? true,
+      rememberPassword: p.getBool('rememberPassword') ?? false,
       fontSize: p.getDouble('fontSize') ?? 14,
-      startupCommand: p.getString('startupCommand') ?? '',
+      startupCommand: p.getString('startupCommand') ?? defaultStartupCommand,
     );
     if (s.rememberPassword) {
       try {
