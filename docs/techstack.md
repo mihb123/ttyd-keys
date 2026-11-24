@@ -11,7 +11,10 @@ Phiên bản lấy từ `pubspec.lock`, `.github/workflows/build.yml` (2026-11-2
 | `xterm` | 4.0.0 | Giả lập terminal (`Terminal`, `TerminalView`, `TerminalKey`, handler phím) |
 | `material_ui` | 1.11.1 | Widget Material (thay import `package:flutter/material.dart`) |
 | `shared_preferences` | 2.5.6 | Lưu host, username, `rememberPassword`, cỡ chữ, lệnh tự chạy |
-| `flutter_secure_storage` | 11.2.0 | Lưu mật khẩu trong Keychain/Keystore |
+| `flutter_secure_storage` | 11.2.0 | Lưu mật khẩu, hash mã PIN, bộ đếm sai trong Keychain/Keystore |
+| `local_auth` | 3.0.2 | Face ID/Touch ID/vân tay ([khoa-app.md](feature/khoa-app.md)) |
+| `crypto` | 3.0.8 | SHA-256 cho mã PIN |
+| JetBrains Mono Nerd Font Mono | v3.5.1 (`assets/fonts/`, OFL) | Font terminal: đủ dấu tiếng Việt dựng sẵn + icon Nerd Font |
 | `dart:io` `HttpClient`, `WebSocket` | SDK | Đăng nhập HTTP, kết nối ttyd |
 
 ## Server (ngoài repo)

@@ -10,6 +10,7 @@ Bàn phím điện thoại thiếu Esc, Tab, Ctrl, Alt, mũi tên… Thanh phím
 - Hàng 2 (cuộn ngang, cao 38): `^C ^D ^Z ^R ^L ^B ^A ^E ^U ^W`, `Home`, `End`, `PgUp`, `PgDn`, 9 ký tự khó gõ (pipe, `~`, `/`, `-`, backtick, backslash, `*`, `$`, `&`), dán, ẩn/hiện bàn phím.
 - Ctrl/Alt/Shift là phím dính 3 trạng thái: chạm 1 = áp cho phím kế tiếp (nền xanh), chạm 2 = khóa (viền trắng), chạm 3 = tắt.
 - Mũi tên giữ để lặp.
+- Thanh phím chỉ hiện khi bàn phím ảo đang mở (`MediaQuery.viewInsetsOf(context).bottom > 0`); chạm vào terminal để bật/tắt ([cu-chi-terminal.md](cu-chi-terminal.md)).
 - Chưa có: tuỳ biến bố cục, F1–F12.
 
 ## Code map
@@ -27,7 +28,7 @@ Bàn phím điện thoại thiếu Esc, Tab, Ctrl, Alt, mũi tên… Thanh phím
 | 9 ký tự khó gõ | `onText` → `_onBarText` → `_onTyped` | `applyModifiers` → `Terminal.textInput` | Có, rồi `consume` |
 | `^C` … `^W` | `onRaw` → `_onBarRaw` | gửi thẳng byte `chữ - 0x40` qua WS | Không |
 | Dán | `_paste` | `Terminal.paste` (bracketed paste nếu chương trình bật) | Không |
-| Ẩn bàn phím | `_toggleKeyboard` | bỏ focus / `TerminalInput.show` | — |
+| Ẩn bàn phím | `_toggleKeyboard` | `_hideKeyboard` / `TerminalInput.show` | — |
 | Ctrl/Alt/Shift | `Modifiers.tap` | chỉ đổi trạng thái | — |
 
 Các nút gửi input (phím, ký tự, `^X`, dán khi clipboard có chữ) gọi `TerminalInput.reset()` để xoá bộ đệm IME; Ctrl/Alt/Shift và ẩn bàn phím thì không.

@@ -33,6 +33,8 @@ App Flutter (iOS + Android) làm terminal native cho ttyd sau ttyd-auth, kèm th
 | [feature/thanh-phim.md](feature/thanh-phim.md) | Thanh phím, Ctrl/Alt/Shift dính, chuỗi escape, lặp phím |
 | [feature/nhap-ban-phim-ao.md](feature/nhap-ban-phim-ao.md) | Cầu nối bàn phím ảo (IME) → terminal |
 | [feature/cai-dat.md](feature/cai-dat.md) | Lưu cài đặt, mật khẩu, cỡ chữ, lệnh tự chạy |
+| [feature/cu-chi-terminal.md](feature/cu-chi-terminal.md) | Chạm bật/tắt bàn phím, nhấn giữ sao chép/dán, hai ngón tay đổi cỡ chữ |
+| [feature/khoa-app.md](feature/khoa-app.md) | Xác thực bước 2: Face ID/PIN, khoá sau 10 phút ở nền, sai 10 lần thì đăng xuất |
 
 ### Mẫu
 
@@ -47,6 +49,8 @@ App Flutter (iOS + Android) làm terminal native cho ttyd sau ttyd-auth, kèm th
 | Nhập từ bàn phím ảo | Xong |
 | Cài đặt (cỡ chữ, lệnh tự chạy, nhớ mật khẩu) | Xong |
 | Build iOS/Android trên GitHub Actions | Xong |
+| Khoá app (Face ID/PIN, khoá sau 10 phút ở nền) | Xong, chưa thử trên máy thật |
+| Cử chỉ: chạm bật/tắt bàn phím, nhấn giữ copy/paste, pinch cỡ chữ | Xong, chưa thử trên máy thật |
 | Unit test | Chưa làm |
 | Nhiều host / nhiều tab | Chưa làm |
 

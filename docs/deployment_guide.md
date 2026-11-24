@@ -43,13 +43,13 @@ Chỉ `scripts/pull-build.sh`, `scripts/install-build.sh` và `Makefile` đọc;
 
 Tên file: `TtydKeys-<số run>-<sha 7 ký tự>-unsigned.ipa` / `TtydKeys-<số run>-<sha>.apk` (CI đặt sẵn; artifact cũ chưa có sha thì `pull-build.sh` đổi tên khi lưu).
 
-Build gắn với commit: `pull-build.sh` lấy commit gần nhất tính từ `REF` có đổi file build (`lib`, `ios`, `android`, `pubspec.*`, `build.yml`, khớp `on.push.paths`), tìm run bằng `gh run list -c <sha>`. Commit chỉ sửa docs/scripts dùng lại build của commit build trước đó. File đã có trong `build-<platform>/` thì không tải lại. Commit chưa push hoặc run bị huỷ thì báo lỗi.
+Build gắn với commit: `pull-build.sh` lấy commit gần nhất tính từ `REF` có đổi file build (`lib`, `assets`, `ios`, `android`, `pubspec.*`, `build.yml`, khớp `on.push.paths`), tìm run bằng `gh run list -c <sha>`. Commit chỉ sửa docs/scripts dùng lại build của commit build trước đó. File đã có trong `build-<platform>/` thì không tải lại. Commit chưa push hoặc run bị huỷ thì báo lỗi.
 
 ## 3. CI/CD (GitHub Actions)
 
 ```mermaid
 flowchart LR
-    Push["push main"] --> CM{"Có đổi lib/, ios/, android/, pubspec.*, build.yml?"}
+    Push["push main"] --> CM{"Có đổi lib/, assets/, ios/, android/, pubspec.*, build.yml?"}
     CM -->|"không"| Skip["Không build"]
     CM -->|"có"| IOS["job ios (macos-latest): flutter build ios --no-codesign, zip Payload thành .ipa"]
     CM -->|"có"| AND["job android (ubuntu-latest): flutter build apk --release"]

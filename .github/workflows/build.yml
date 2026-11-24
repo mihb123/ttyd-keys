@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - 'lib/**'
+      - 'assets/**'
       - 'ios/**'
       - 'android/**'
       - 'pubspec.yaml'

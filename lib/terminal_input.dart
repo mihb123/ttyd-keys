@@ -47,10 +47,10 @@ class TerminalInputState extends State<TerminalInput> with TextInputClient {
     super.dispose();
   }
 
+  bool get isAttached => _connection?.attached ?? false;
+
   void _onFocus() {
-    if (widget.focusNode.hasFocus) {
-      show();
-    } else {
+    if (!widget.focusNode.hasFocus) {
       _connection?.close();
       _connection = null;
     }
@@ -59,7 +59,6 @@ class TerminalInputState extends State<TerminalInput> with TextInputClient {
   void show() {
     if (!widget.focusNode.hasFocus) {
       widget.focusNode.requestFocus();
-      return;
     }
     if (_connection == null || !_connection!.attached) {
       _connection = TextInput.attach(
@@ -81,6 +80,14 @@ class TerminalInputState extends State<TerminalInput> with TextInputClient {
       _connection!.setEditingState(_value);
     }
     _connection!.show();
+  }
+
+  void hide() {
+    _connection?.close();
+    _connection = null;
+    if (widget.focusNode.hasFocus) {
+      widget.focusNode.unfocus();
+    }
   }
 
   void reset() {

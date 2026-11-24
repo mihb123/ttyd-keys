@@ -41,6 +41,9 @@ lib/
   modifiers.dart        trạng thái Ctrl/Alt/Shift + applyModifiers
   key_handler.dart      FixedKeyHandler: TerminalKey → chuỗi escape
   settings.dart         Settings load/save
+  app_lock.dart         AppLock: sinh trắc học (local_auth), mã PIN (hash trong secure storage), đếm sai
+  lock_screen.dart      LockScreen: màn khoá / tạo mã PIN, phủ lên TerminalScreen
+  terminal_gestures.dart PinchGestureRecognizer (≥ 2 ngón), snapFontSize/formatFontSize
 ```
 
 | Quy tắc ranh giới | Lý do |
@@ -57,6 +60,7 @@ lib/
 | Đăng nhập | `lib/main.dart` (`LoginScreen`) | [ket-noi-ttyd.md](feature/ket-noi-ttyd.md) |
 | Terminal (AppBar trạng thái, banner lỗi, terminal, thanh phím) | `lib/terminal_screen.dart` | [ket-noi-ttyd.md](feature/ket-noi-ttyd.md), [thanh-phim.md](feature/thanh-phim.md), [nhap-ban-phim-ao.md](feature/nhap-ban-phim-ao.md) |
 | Cài đặt (bottom sheet) | `lib/terminal_screen.dart` (`_SettingsSheet`) | [cai-dat.md](feature/cai-dat.md) |
+| Khoá / tạo mã PIN (phủ lên Terminal bằng `Stack`) | `lib/lock_screen.dart` (`LockScreen`) | [khoa-app.md](feature/khoa-app.md) |
 
 Điều hướng bằng `Navigator.pushReplacement` (không có router); theme tối, seed `0xFF3B82F6`.
 
@@ -75,7 +79,7 @@ lib/
 |---|---|---|
 | WebSocket ping | 10 s | `TtydConnection.open` |
 | Tự nối lại khi rớt (kết nối đã sống > 5 s, app foreground) | khi `done` | `_TerminalScreenState._connect` |
-| Nối lại khi app về foreground | `AppLifecycleState.resumed` | `didChangeAppLifecycleState` |
+| Nối lại khi app về foreground; khoá nếu ở nền ≥ 10 phút | `AppLifecycleState.resumed` | `didChangeAppLifecycleState` |
 | Lặp phím mũi tên | 400 ms chờ, 60 ms lặp | `_KeyState` |
 
 ## 6. Bảo mật
@@ -84,7 +88,8 @@ lib/
 - Mật khẩu lưu bằng `flutter_secure_storage` (Keychain/Keystore), chỉ khi bật "Nhớ mật khẩu"; host/username/cài đặt ở SharedPreferences.
 - Cookie phiên `ttyd_*` chỉ giữ trong bộ nhớ (`TtydSession`), không lưu đĩa.
 - Sai mật khẩu khi tự đăng nhập lại → xoá mật khẩu đã nhớ.
-- Android chỉ xin quyền `INTERNET`.
+- Xác thực bước 2 trên máy (Face ID/vân tay hoặc PIN 4 số, sai 10 lần thì đăng xuất) khi mở app bằng mật khẩu đã nhớ và khi rời app ≥ 10 phút: [khoa-app.md](feature/khoa-app.md).
+- Android xin quyền `INTERNET`; `USE_BIOMETRIC` do plugin `local_auth` thêm.
 
 ## 7. Định danh app
 

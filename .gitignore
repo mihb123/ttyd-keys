@@ -22,6 +22,7 @@
 !/ios/
 !/docs/
 !/scripts/
+!/assets/
 
 # --- Bỏ qua file rác/build phát sinh bên trong thư mục được cho phép ---
 # (android/.gitignore và ios/.gitignore vẫn có hiệu lực riêng)

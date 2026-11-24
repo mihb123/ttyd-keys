@@ -1,25 +1,35 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter/services.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:xterm/xterm.dart';
 
+import 'app_lock.dart';
 import 'key_bar.dart';
 import 'key_handler.dart';
+import 'lock_screen.dart';
 import 'main.dart';
 import 'modifiers.dart';
 import 'settings.dart';
+import 'terminal_gestures.dart';
 import 'terminal_input.dart';
 import 'ttyd_client.dart';
 
 enum _Status { connecting, connected, disconnected }
 
+/// Font nhúng trong app (assets/fonts): đủ dấu tiếng Việt dựng sẵn + icon Nerd Font cho prompt/tmux.
+const terminalFontFamily = 'JetBrainsMonoNF';
+
 class TerminalScreen extends StatefulWidget {
-  const TerminalScreen({super.key, required this.settings, this.initialSession});
+  const TerminalScreen({super.key, required this.settings, this.initialSession, this.lockOnStart = false});
 
   final Settings settings;
   final TtydSession? initialSession;
+
+  /// Mở app bằng mật khẩu đã nhớ: tự đăng nhập, nhưng phải qua bước 2 (Face ID/PIN) mới thấy terminal.
+  final bool lockOnStart;
 
   @override
   State<TerminalScreen> createState() => _TerminalScreenState();
@@ -31,6 +41,8 @@ class _TerminalScreenState extends State<TerminalScreen> with WidgetsBindingObse
   final _controller = TerminalController();
   final _focus = FocusNode();
   final _mods = Modifiers();
+  final _contextMenuController = ContextMenuController();
+  final Set<int> _activePointers = {};
 
   late TtydSession? _session = widget.initialSession;
   TtydConnection? _conn;
@@ -39,7 +51,33 @@ class _TerminalScreenState extends State<TerminalScreen> with WidgetsBindingObse
   String _title = '';
   bool _connecting = false;
 
+  final _lock = AppLock();
+  late bool _locked = widget.lockOnStart;
+  bool _pinSetup = false;
+  int _lockRound = 0;
+  DateTime? _backgroundAt;
+  bool _loggingOut = false;
+
+  /// Màn che đen khi app không ở foreground (không lộ terminal trong trình chuyển app),
+  /// và lúc đang kiểm có cần tạo PIN sau khi đăng nhập bằng mật khẩu.
+  late bool _curtain = !widget.lockOnStart;
+
+  int? _singlePointer;
+  Offset? _pointerDownPos;
+  bool _movedBeyondSlop = false;
+  bool _multiTouchUsed = false;
+  bool _longPressTriggered = false;
+  bool _hadSelectionOrMenuOnDown = false;
+  bool _wasKeyboardOpenOnDown = false;
+  int? _dismissedPointer;
+  Timer? _longPressTimer;
+  bool _lastKeyboardVisible = false;
+  bool _pinching = false;
+  double _pinchBaseFontSize = 14;
+
   Settings get _settings => widget.settings;
+
+  bool get _covered => _locked || _pinSetup;
 
   @override
   void initState() {
@@ -48,12 +86,53 @@ class _TerminalScreenState extends State<TerminalScreen> with WidgetsBindingObse
     _terminal.onOutput = _send;
     _terminal.onResize = (w, h, _, _) => _conn?.resize(w, h);
     WidgetsBinding.instance.addPostFrameCallback((_) => _connect());
+    if (!widget.lockOnStart) _checkPinSetup();
+  }
+
+  /// Chỉ chạy ngay sau khi đăng nhập bằng mật khẩu: máy không có sinh trắc học và chưa có mã PIN
+  /// → bắt tạo mã PIN. Không bao giờ chạy khi đang khoá (xem `AppLock.needsPinSetup`).
+  Future<void> _checkPinSetup() async {
+    final need = await _lock.needsPinSetup();
+    if (!mounted) return;
+    if (need) FocusManager.instance.primaryFocus?.unfocus();
+    setState(() {
+      _pinSetup = need;
+      _curtain = false;
+    });
+  }
+
+  void _lockNow() {
+    FocusManager.instance.primaryFocus?.unfocus();
+    // Menu Sao chép/Dán nằm trên Overlay riêng, phải gỡ để không nổi trên màn khoá.
+    _dismissSelectionAndMenu();
+    // Đóng sheet Cài đặt/menu đang mở phía trên, nếu không chúng nằm đè lên màn khoá.
+    final route = ModalRoute.of(context);
+    if (route != null) Navigator.of(context).popUntil((r) => r == route);
+    setState(() {
+      _locked = true;
+      _lockRound++;
+    });
+  }
+
+  void _onUnlocked() {
+    setState(() {
+      _locked = false;
+      _pinSetup = false;
+    });
+    if (_conn?.isOpen ?? false) {
+      _inputKey.currentState?.show();
+    } else {
+      _connect();
+    }
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _longPressTimer?.cancel();
+    _contextMenuController.remove();
     _conn?.close();
+    _controller.dispose();
     _focus.dispose();
     _mods.dispose();
     super.dispose();
@@ -61,8 +140,25 @@ class _TerminalScreenState extends State<TerminalScreen> with WidgetsBindingObse
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed && _status == _Status.disconnected) {
-      _connect();
+    switch (state) {
+      // inactive (Face ID, Trung tâm điều khiển) chỉ che màn, không tính là rời app.
+      case AppLifecycleState.inactive:
+        if (!_curtain) setState(() => _curtain = true);
+      case AppLifecycleState.hidden || AppLifecycleState.paused:
+        _backgroundAt ??= DateTime.now();
+        _dismissSelectionAndMenu();
+        if (!_curtain) setState(() => _curtain = true);
+      case AppLifecycleState.resumed:
+        final since = _backgroundAt;
+        _backgroundAt = null;
+        if (since != null && !_covered) {
+          final away = DateTime.now().difference(since);
+          // Đồng hồ bị lùi (away âm) cũng khoá.
+          if (away.isNegative || away >= AppLock.lockAfter) _lockNow();
+        }
+        if (_curtain) setState(() => _curtain = false);
+        if (_status == _Status.disconnected) _connect();
+      default:
     }
   }
 
@@ -71,8 +167,10 @@ class _TerminalScreenState extends State<TerminalScreen> with WidgetsBindingObse
     return login(_settings.host, _settings.username, _settings.password);
   }
 
+  /// Đang khoá thì không mở WS (shell + lệnh tự chạy chỉ chạy sau khi xác thực bước 2);
+  /// `_onUnlocked` gọi lại.
   Future<void> _connect() async {
-    if (_connecting || (_conn?.isOpen ?? false)) return;
+    if (!mounted || _covered || _loggingOut || _connecting || (_conn?.isOpen ?? false)) return;
     _connecting = true;
     setState(() {
       _status = _Status.connecting;
@@ -110,7 +208,7 @@ class _TerminalScreenState extends State<TerminalScreen> with WidgetsBindingObse
           if (_conn == opened) opened.input('$startup\r');
         });
       }
-      _inputKey.currentState?.show();
+      if (!_covered) _inputKey.currentState?.show();
       final openedAt = DateTime.now();
       conn.done.then((_) {
         if (!mounted || _conn != conn) return;
@@ -122,8 +220,7 @@ class _TerminalScreenState extends State<TerminalScreen> with WidgetsBindingObse
     } on AuthException catch (e) {
       if (!mounted) return;
       if (e.wrongCredentials) {
-        await _settings.forgetPassword();
-        if (mounted) showLogin(context, _settings, error: e.message);
+        await _logout(error: e.message);
         return;
       }
       setState(() {
@@ -159,14 +256,11 @@ class _TerminalScreenState extends State<TerminalScreen> with WidgetsBindingObse
     conn.input(data);
   }
 
-  String _withMods(String data) => applyModifiers(
-        data,
-        ctrl: _mods.isOn(Mod.ctrl),
-        alt: _mods.isOn(Mod.alt),
-        shift: _mods.isOn(Mod.shift),
-      );
+  String _withMods(String data) =>
+      applyModifiers(data, ctrl: _mods.isOn(Mod.ctrl), alt: _mods.isOn(Mod.alt), shift: _mods.isOn(Mod.shift));
 
   bool _onTyped(String text) {
+    _dismissSelectionAndMenu();
     if (!_mods.any || text.runes.length != 1) {
       _terminal.textInput(text);
       return false;
@@ -177,12 +271,9 @@ class _TerminalScreenState extends State<TerminalScreen> with WidgetsBindingObse
   }
 
   void _onDelete(int count) {
+    _dismissSelectionAndMenu();
     if (count == 1 && _mods.any) {
-      _terminal.keyInput(
-        TerminalKey.backspace,
-        ctrl: _mods.isOn(Mod.ctrl),
-        alt: _mods.isOn(Mod.alt),
-      );
+      _terminal.keyInput(TerminalKey.backspace, ctrl: _mods.isOn(Mod.ctrl), alt: _mods.isOn(Mod.alt));
       _mods.consume();
       return;
     }
@@ -190,17 +281,14 @@ class _TerminalScreenState extends State<TerminalScreen> with WidgetsBindingObse
   }
 
   void _onEnter() {
+    _dismissSelectionAndMenu();
     _terminal.keyInput(TerminalKey.enter, alt: _mods.isOn(Mod.alt));
     _mods.consume();
   }
 
   void _onBarKey(TerminalKey key) {
-    _terminal.keyInput(
-      key,
-      ctrl: _mods.isOn(Mod.ctrl),
-      alt: _mods.isOn(Mod.alt),
-      shift: _mods.isOn(Mod.shift),
-    );
+    _dismissSelectionAndMenu();
+    _terminal.keyInput(key, ctrl: _mods.isOn(Mod.ctrl), alt: _mods.isOn(Mod.alt), shift: _mods.isOn(Mod.shift));
     _mods.consume();
     _inputKey.currentState?.reset();
   }
@@ -211,11 +299,13 @@ class _TerminalScreenState extends State<TerminalScreen> with WidgetsBindingObse
   }
 
   void _onBarRaw(String data) {
+    _dismissSelectionAndMenu();
     _send(data);
     _inputKey.currentState?.reset();
   }
 
   Future<void> _paste() async {
+    _dismissSelectionAndMenu();
     final data = await Clipboard.getData(Clipboard.kTextPlain);
     final text = data?.text;
     if (text == null || text.isEmpty) return;
@@ -223,15 +313,234 @@ class _TerminalScreenState extends State<TerminalScreen> with WidgetsBindingObse
     _inputKey.currentState?.reset();
   }
 
+  bool get _isKeyboardOpen =>
+      MediaQuery.viewInsetsOf(context).bottom > 0 || (_focus.hasFocus && (_inputKey.currentState?.isAttached ?? false));
+
+  void _hideKeyboard() {
+    _inputKey.currentState?.hide();
+    if (_focus.hasFocus) _focus.unfocus();
+  }
+
   void _toggleKeyboard() {
-    if (_focus.hasFocus) {
-      _focus.unfocus();
+    if (_isKeyboardOpen) {
+      _hideKeyboard();
     } else {
       _inputKey.currentState?.show();
     }
   }
 
+  void _dismissSelectionAndMenu() {
+    if (_contextMenuController.isShown) {
+      _contextMenuController.remove();
+    }
+    if (_controller.selection != null) {
+      _controller.clearSelection();
+    }
+  }
+
+  void _showContextMenu(Offset globalPosition) {
+    if (!mounted) return;
+    final selection = _controller.selection;
+    final hasSelection = selection != null && _terminal.buffer.getText(selection).isNotEmpty;
+    final items = <ContextMenuButtonItem>[
+      if (hasSelection) ContextMenuButtonItem(label: 'Sao chép', onPressed: _copySelection),
+      ContextMenuButtonItem(label: 'Dán', onPressed: _pasteFromMenu),
+      if (hasSelection) ContextMenuButtonItem(label: 'Chọn tất cả', onPressed: () => _selectAll(globalPosition)),
+    ];
+    _contextMenuController.show(
+      context: context,
+      contextMenuBuilder: (_) => Stack(
+        children: [
+          Positioned.fill(
+            child: Listener(
+              behavior: HitTestBehavior.translucent,
+              onPointerDown: (e) {
+                _dismissedPointer = e.pointer;
+                _dismissSelectionAndMenu();
+              },
+            ),
+          ),
+          AdaptiveTextSelectionToolbar.buttonItems(
+            anchors: TextSelectionToolbarAnchors(
+              primaryAnchor: globalPosition - const Offset(0, 12),
+              secondaryAnchor: globalPosition + const Offset(0, 16),
+            ),
+            buttonItems: items,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _copySelection() async {
+    final selection = _controller.selection;
+    _dismissSelectionAndMenu();
+    if (selection == null) return;
+    final text = _terminal.buffer.getText(selection);
+    if (text.isEmpty) return;
+    await Clipboard.setData(ClipboardData(text: text));
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(const SnackBar(content: Text('Đã sao chép'), duration: Duration(milliseconds: 1200)));
+  }
+
+  void _pasteFromMenu() {
+    _paste();
+  }
+
+  void _selectAll(Offset anchor) {
+    final height = _terminal.buffer.height;
+    final viewHeight = _terminal.viewHeight;
+    if (height <= 0 || _terminal.viewWidth <= 0) return;
+    final startRow = (height - viewHeight).clamp(0, height - 1);
+    _controller.setSelection(
+      _terminal.buffer.createAnchor(0, startRow),
+      _terminal.buffer.createAnchor(_terminal.viewWidth, height - 1),
+      mode: SelectionMode.line,
+    );
+    _showContextMenu(anchor);
+  }
+
+  double get _touchSlop => MediaQuery.maybeGestureSettingsOf(context)?.touchSlop ?? kTouchSlop;
+
+  void _onPointerDown(PointerDownEvent event) {
+    if (event.kind == PointerDeviceKind.mouse && event.buttons != kPrimaryButton) {
+      return;
+    }
+    _activePointers.add(event.pointer);
+    if (_activePointers.length > 1) {
+      _multiTouchUsed = true;
+      _longPressTimer?.cancel();
+      _longPressTimer = null;
+      _longPressTriggered = false;
+      _singlePointer = null;
+      return;
+    }
+
+    _singlePointer = event.pointer;
+    _pointerDownPos = event.position;
+    _movedBeyondSlop = false;
+    _multiTouchUsed = false;
+    _longPressTriggered = false;
+    _hadSelectionOrMenuOnDown =
+        _controller.selection != null || _contextMenuController.isShown || _dismissedPointer == event.pointer;
+    _wasKeyboardOpenOnDown = _isKeyboardOpen;
+
+    _longPressTimer?.cancel();
+    if (event.kind == PointerDeviceKind.touch) {
+      final pointer = event.pointer;
+      _longPressTimer = Timer(kLongPressTimeout, () {
+        if (!mounted || _singlePointer != pointer || _movedBeyondSlop || _multiTouchUsed) {
+          return;
+        }
+        _longPressTriggered = true;
+        HapticFeedback.selectionClick();
+      });
+    }
+  }
+
+  void _onPointerMove(PointerMoveEvent event) {
+    if (event.pointer != _singlePointer || _longPressTriggered || _movedBeyondSlop) {
+      return;
+    }
+    final downPos = _pointerDownPos;
+    if (downPos != null && (event.position - downPos).distance > _touchSlop) {
+      _movedBeyondSlop = true;
+      _longPressTimer?.cancel();
+      _longPressTimer = null;
+    }
+  }
+
+  void _onPointerUp(PointerUpEvent event) {
+    _activePointers.remove(event.pointer);
+    final isSingle = event.pointer == _singlePointer;
+    final downPos = _pointerDownPos;
+    final wasLongPress = _longPressTriggered;
+    final wasMoved = _movedBeyondSlop;
+    final wasMultiTouch = _multiTouchUsed;
+    final hadSelectionOrMenu = _hadSelectionOrMenuOnDown;
+    final wasKeyboardOpen = _wasKeyboardOpenOnDown;
+
+    if (isSingle) {
+      _longPressTimer?.cancel();
+      _longPressTimer = null;
+      _longPressTriggered = false;
+      _singlePointer = null;
+      _pointerDownPos = null;
+    }
+    if (_activePointers.isEmpty) {
+      _multiTouchUsed = false;
+      _dismissedPointer = null;
+    }
+
+    if (!isSingle || wasMultiTouch) return;
+
+    if (wasLongPress) {
+      _showContextMenu(event.position);
+      return;
+    }
+
+    if (wasMoved || downPos == null || (event.position - downPos).distance > _touchSlop) {
+      return;
+    }
+
+    if (hadSelectionOrMenu) {
+      _dismissSelectionAndMenu();
+      return;
+    }
+
+    if (_controller.selection != null) {
+      _showContextMenu(event.position);
+      return;
+    }
+
+    if (wasKeyboardOpen) {
+      _hideKeyboard();
+    } else {
+      _inputKey.currentState?.show();
+    }
+  }
+
+  void _onPointerCancel(PointerCancelEvent event) {
+    _activePointers.remove(event.pointer);
+    if (event.pointer == _singlePointer) {
+      _longPressTimer?.cancel();
+      _longPressTimer = null;
+      _longPressTriggered = false;
+      _singlePointer = null;
+      _pointerDownPos = null;
+    }
+    if (_activePointers.isEmpty) {
+      _multiTouchUsed = false;
+      _dismissedPointer = null;
+    }
+  }
+
+  void _onPinchStart() {
+    _dismissSelectionAndMenu();
+    _controller.setSuspendPointerInput(true);
+    _pinchBaseFontSize = _settings.fontSize;
+    setState(() => _pinching = true);
+  }
+
+  void _onPinchUpdate(double scale) {
+    final next = snapFontSize(_pinchBaseFontSize * scale);
+    if (next != _settings.fontSize) {
+      setState(() => _settings.fontSize = next);
+    }
+  }
+
+  void _onPinchEnd() {
+    _controller.setSuspendPointerInput(false);
+    if (_pinching) {
+      setState(() => _pinching = false);
+    }
+    _settings.save();
+  }
+
   Future<void> _openSettings() async {
+    _dismissSelectionAndMenu();
     final changed = await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
@@ -240,16 +549,57 @@ class _TerminalScreenState extends State<TerminalScreen> with WidgetsBindingObse
     if (changed == true && mounted) setState(() {});
   }
 
-  Future<void> _logout() async {
-    await _conn?.close();
+  /// Đăng xuất: đóng WS, quên mật khẩu và mã PIN (đăng nhập lại bằng mật khẩu thì tạo PIN mới).
+  Future<void> _logout({String? error}) async {
+    if (_loggingOut) return;
+    _loggingOut = true;
+    final conn = _conn;
     _conn = null;
+    await conn?.close();
     await _settings.forgetPassword();
     await _settings.save();
-    if (mounted) showLogin(context, _settings);
+    await _lock.clear();
+    if (mounted) showLogin(context, _settings, error: error);
   }
 
   @override
   Widget build(BuildContext context) {
+    return Stack(
+      children: [
+        // Màn khoá phủ lên: terminal phía dưới không nhận chạm, focus (bàn phím cứng), VoiceOver.
+        ExcludeSemantics(
+          excluding: _covered,
+          child: ExcludeFocus(
+            excluding: _covered,
+            child: IgnorePointer(ignoring: _covered, child: _terminalScaffold(context)),
+          ),
+        ),
+        if (_curtain && !_covered) const Positioned.fill(child: ColoredBox(color: Color(0xFF111214))),
+        if (_covered)
+          Positioned.fill(
+            child: LockScreen(
+              key: ValueKey((_lockRound, _pinSetup)),
+              lock: _lock,
+              setup: _pinSetup,
+              onUnlocked: _onUnlocked,
+              onLogout: (error) => _logout(error: error),
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _terminalScaffold(BuildContext context) {
+    final keyboardVisible = MediaQuery.viewInsetsOf(context).bottom > 0;
+    if (_lastKeyboardVisible && !keyboardVisible) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && MediaQuery.viewInsetsOf(context).bottom == 0 && (_inputKey.currentState?.isAttached ?? false)) {
+          _hideKeyboard();
+        }
+      });
+    }
+    _lastKeyboardVisible = keyboardVisible;
+
     return Scaffold(
       backgroundColor: Colors.black,
       resizeToAvoidBottomInset: true,
@@ -301,31 +651,81 @@ class _TerminalScreenState extends State<TerminalScreen> with WidgetsBindingObse
               actions: [TextButton(onPressed: _connect, child: const Text('Thử lại'))],
             ),
           Expanded(
-            child: TerminalInput(
-              key: _inputKey,
-              focusNode: _focus,
-              onTyped: _onTyped,
-              onDelete: _onDelete,
-              onEnter: _onEnter,
-              child: TerminalView(
-                _terminal,
-                controller: _controller,
-                focusNode: _focus,
-                hardwareKeyboardOnly: true,
-                textStyle: TerminalStyle(fontSize: _settings.fontSize),
-                padding: const EdgeInsets.all(4),
-                onTapUp: (_, _) => _inputKey.currentState?.show(),
-              ),
+            child: Stack(
+              children: [
+                Listener(
+                  onPointerDown: _onPointerDown,
+                  onPointerMove: _onPointerMove,
+                  onPointerUp: _onPointerUp,
+                  onPointerCancel: _onPointerCancel,
+                  child: RawGestureDetector(
+                    gestures: {
+                      PinchGestureRecognizer: GestureRecognizerFactoryWithHandlers<PinchGestureRecognizer>(
+                        () => PinchGestureRecognizer(debugOwner: this),
+                        (instance) {
+                          instance
+                            ..onPinchStart = _onPinchStart
+                            ..onPinchUpdate = _onPinchUpdate
+                            ..onPinchEnd = _onPinchEnd;
+                        },
+                      ),
+                    },
+                    child: TerminalInput(
+                      key: _inputKey,
+                      focusNode: _focus,
+                      onTyped: _onTyped,
+                      onDelete: _onDelete,
+                      onEnter: _onEnter,
+                      child: TerminalView(
+                        _terminal,
+                        controller: _controller,
+                        focusNode: _focus,
+                        hardwareKeyboardOnly: true,
+                        textStyle: TerminalStyle(fontSize: _settings.fontSize, fontFamily: terminalFontFamily),
+                        padding: const EdgeInsets.all(4),
+                        onKeyEvent: (_, event) {
+                          if (event is KeyDownEvent &&
+                              !HardwareKeyboard.instance.isControlPressed &&
+                              !HardwareKeyboard.instance.isMetaPressed) {
+                            _dismissSelectionAndMenu();
+                          }
+                          return KeyEventResult.ignored;
+                        },
+                      ),
+                    ),
+                  ),
+                ),
+                if (_pinching)
+                  IgnorePointer(
+                    child: Center(
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          color: const Color(0xCC000000),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: Colors.white24),
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                          child: Text(
+                            '${formatFontSize(_settings.fontSize)} pt',
+                            style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w600),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
             ),
           ),
-          KeyBar(
-            modifiers: _mods,
-            onKey: _onBarKey,
-            onRaw: _onBarRaw,
-            onText: _onBarText,
-            onPaste: _paste,
-            onToggleKeyboard: _toggleKeyboard,
-          ),
+          if (keyboardVisible)
+            KeyBar(
+              modifiers: _mods,
+              onKey: _onBarKey,
+              onRaw: _onBarRaw,
+              onText: _onBarText,
+              onPaste: _paste,
+              onToggleKeyboard: _toggleKeyboard,
+            ),
         ],
       ),
     );
@@ -342,7 +742,7 @@ class _SettingsSheet extends StatefulWidget {
 }
 
 class _SettingsSheetState extends State<_SettingsSheet> {
-  late double _fontSize = widget.settings.fontSize;
+  late double _fontSize = snapFontSize(widget.settings.fontSize);
   late final _startup = TextEditingController(text: widget.settings.startupCommand);
 
   @override
@@ -367,13 +767,13 @@ class _SettingsSheetState extends State<_SettingsSheet> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text('Cỡ chữ: ${_fontSize.round()}'),
+          Text('Cỡ chữ: ${formatFontSize(_fontSize)} pt'),
           Slider(
             value: _fontSize,
-            min: 9,
-            max: 24,
-            divisions: 15,
-            onChanged: (v) => setState(() => _fontSize = v),
+            min: minTerminalFontSize,
+            max: maxTerminalFontSize,
+            divisions: 30,
+            onChanged: (v) => setState(() => _fontSize = snapFontSize(v)),
           ),
           TextField(
             controller: _startup,

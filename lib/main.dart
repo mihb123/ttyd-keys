@@ -23,7 +23,7 @@ class TtydKeysApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: ThemeData(colorSchemeSeed: const Color(0xFF3B82F6), brightness: Brightness.dark),
       home: settings.rememberPassword && settings.username.isNotEmpty && settings.password.isNotEmpty
-          ? TerminalScreen(settings: settings)
+          ? TerminalScreen(settings: settings, lockOnStart: true)
           : LoginScreen(settings: settings),
     );
   }

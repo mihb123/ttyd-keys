@@ -10,7 +10,7 @@ repo=${REPO:-mihb123/ttyd-keys}
 root=$(git -C "$(dirname "$0")/.." rev-parse --show-toplevel)
 out_dir=${OUT_DIR:-$root/build-$platform}
 # Giữ khớp với on.push.paths trong .github/workflows/build.yml
-build_paths="lib ios android pubspec.yaml pubspec.lock .github/workflows/build.yml"
+build_paths="lib assets ios android pubspec.yaml pubspec.lock .github/workflows/build.yml"
 
 case $platform in
   ios) ext=ipa suffix=-unsigned ;;
