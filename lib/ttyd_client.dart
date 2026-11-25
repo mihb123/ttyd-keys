@@ -99,6 +99,7 @@ class TtydConnection {
   late final ByteConversionSink _decoder;
   final _closed = Completer<void>();
   final _firstOutput = Completer<void>();
+  StreamSubscription<dynamic>? _sub;
 
   Future<void> get firstOutput => _firstOutput.future;
 
@@ -121,7 +122,7 @@ class TtydConnection {
     ws.pingInterval = const Duration(seconds: 10);
     final conn = TtydConnection._(ws, onText, onTitle);
     ws.add(utf8.encode(jsonEncode({'AuthToken': '', 'columns': columns, 'rows': rows})));
-    ws.listen(conn._onMessage, onDone: conn._finish, onError: (_) => conn._finish(), cancelOnError: true);
+    conn._sub = ws.listen(conn._onMessage, onDone: conn._finish, onError: (_) => conn._finish(), cancelOnError: true);
     return conn;
   }
 
@@ -151,6 +152,7 @@ class TtydConnection {
   void resize(int columns, int rows) => _send(0x31, utf8.encode(jsonEncode({'columns': columns, 'rows': rows})));
 
   Future<void> close() async {
+    await _sub?.cancel();
     await _ws.close();
     _finish();
   }

@@ -11,7 +11,7 @@ class Settings {
     this.rememberPassword = false,
     this.fontSize = 14,
     this.startupCommand = defaultStartupCommand,
-    this.showKeyBar = true,
+    this.showSecondKeyRow = true,
     Set<String>? hiddenKeyBarKeys,
   }) : hiddenKeyBarKeys = Set<String>.from(hiddenKeyBarKeys ?? const <String>{});
 
@@ -21,7 +21,7 @@ class Settings {
   bool rememberPassword;
   double fontSize;
   String startupCommand;
-  bool showKeyBar;
+  bool showSecondKeyRow;
   Set<String> hiddenKeyBarKeys;
 
   static const _secure = FlutterSecureStorage();
@@ -34,7 +34,7 @@ class Settings {
       rememberPassword: p.getBool('rememberPassword') ?? false,
       fontSize: p.getDouble('fontSize') ?? 14,
       startupCommand: p.getString('startupCommand') ?? defaultStartupCommand,
-      showKeyBar: p.getBool('showKeyBar') ?? true,
+      showSecondKeyRow: p.getBool('showSecondKeyRow') ?? p.getBool('showKeyBar') ?? true,
       hiddenKeyBarKeys: (p.getStringList('hiddenKeyBarKeys') ?? const <String>[]).toSet(),
     );
     if (s.rememberPassword) {
@@ -54,7 +54,8 @@ class Settings {
     await p.setBool('rememberPassword', rememberPassword);
     await p.setDouble('fontSize', fontSize);
     await p.setString('startupCommand', startupCommand);
-    await p.setBool('showKeyBar', showKeyBar);
+    await p.setBool('showSecondKeyRow', showSecondKeyRow);
+    await p.remove('showKeyBar');
     await p.setStringList('hiddenKeyBarKeys', hiddenKeyBarKeys.toList()..sort());
     try {
       if (rememberPassword && password.isNotEmpty) {

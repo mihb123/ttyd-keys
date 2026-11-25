@@ -148,7 +148,9 @@ class _TerminalScreenState extends State<TerminalScreen>
       _pinSetup = false;
     });
     if (_conn?.isOpen ?? false) {
-      _inputKey.currentState?.show();
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && !_covered) _inputKey.currentState?.show();
+      });
     } else {
       _connect();
     }
@@ -169,6 +171,10 @@ class _TerminalScreenState extends State<TerminalScreen>
     _focus.dispose();
     _mods.dispose();
     super.dispose();
+  }
+
+  void _onInputAttachChanged() {
+    if (mounted) setState(() {});
   }
 
   void _onTerminalStateChanged() {
@@ -244,6 +250,14 @@ class _TerminalScreenState extends State<TerminalScreen>
     return login(_settings.host, _settings.username, _settings.password);
   }
 
+  Future<void> _reconnect() async {
+    if (!mounted || _covered || _loggingOut || _connecting) return;
+    final old = _conn;
+    _conn = null;
+    if (old != null) unawaited(old.close().catchError((Object _) {}));
+    await _connect();
+  }
+
   /// Đang khoá thì không mở WS (shell + lệnh tự chạy chỉ chạy sau khi xác thực bước 2);
   /// `_onUnlocked` gọi lại.
   Future<void> _connect() async {
@@ -271,7 +285,7 @@ class _TerminalScreenState extends State<TerminalScreen>
         }
         conn = await _open(_session!);
       }
-      if (!mounted) {
+      if (!mounted || _loggingOut) {
         conn.close();
         return;
       }
@@ -834,7 +848,9 @@ class _TerminalScreenState extends State<TerminalScreen>
   }
 
   Widget _terminalScaffold(BuildContext context) {
-    final keyboardVisible = MediaQuery.viewInsetsOf(context).bottom > 0;
+    final keyboardInset = MediaQuery.viewInsetsOf(context).bottom;
+    final keyboardVisible = keyboardInset > 0;
+    final showKeyBar = keyboardVisible && (_inputKey.currentState?.isAttached ?? false);
     if (_lastKeyboardVisible && !keyboardVisible) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted && MediaQuery.viewInsetsOf(context).bottom == 0 && (_inputKey.currentState?.isAttached ?? false)) {
@@ -873,16 +889,18 @@ class _TerminalScreenState extends State<TerminalScreen>
         ),
         actions: [
           if (_status == _Status.disconnected)
-            IconButton(tooltip: 'Kết nối lại', icon: const Icon(Icons.refresh), onPressed: _connect),
+            IconButton(tooltip: 'Kết nối lại', icon: const Icon(Icons.refresh), onPressed: _reconnect),
           PopupMenuButton<String>(
             onSelected: (v) => switch (v) {
+              'reconnect' => _reconnect(),
               'settings' => _openSettings(),
               'logout' => _logout(),
               _ => null,
             },
-            itemBuilder: (_) => const [
-              PopupMenuItem(value: 'settings', child: Text('Cài đặt')),
-              PopupMenuItem(value: 'logout', child: Text('Đăng xuất, quên mật khẩu')),
+            itemBuilder: (_) => [
+              PopupMenuItem(value: 'reconnect', enabled: !_connecting, child: const Text('Kết nối lại')),
+              const PopupMenuItem(value: 'settings', child: Text('Cài đặt')),
+              const PopupMenuItem(value: 'logout', child: Text('Đăng xuất, quên mật khẩu')),
             ],
           ),
         ],
@@ -892,7 +910,7 @@ class _TerminalScreenState extends State<TerminalScreen>
           if (_error != null)
             MaterialBanner(
               content: Text(_error!),
-              actions: [TextButton(onPressed: _connect, child: const Text('Thử lại'))],
+              actions: [TextButton(onPressed: _reconnect, child: const Text('Thử lại'))],
             ),
           Expanded(
             child: Stack(
@@ -931,6 +949,7 @@ class _TerminalScreenState extends State<TerminalScreen>
                       onTyped: _onTyped,
                       onDelete: _onDelete,
                       onEnter: _onEnter,
+                      onAttachChanged: _onInputAttachChanged,
                       child: ScrollConfiguration(
                         behavior: TerminalScrollBehavior(altBuffer: _isAltBuffer),
                         child: Scrollbar(
@@ -958,6 +977,37 @@ class _TerminalScreenState extends State<TerminalScreen>
                     ),
                   ),
                 ),
+                if (!_covered && _status != _Status.connected)
+                  Positioned(
+                    left: 16,
+                    right: _isScrolledUp && !_isAltBuffer ? 72 : 16,
+                    bottom: 0,
+                    child: SafeArea(
+                      top: false,
+                      minimum: const EdgeInsets.only(bottom: 16),
+                      child: Center(
+                        child: FilledButton.icon(
+                          style: FilledButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                            minimumSize: const Size(0, 48),
+                          ),
+                          onPressed: _status == _Status.disconnected
+                              ? () {
+                                  HapticFeedback.lightImpact();
+                                  _reconnect();
+                                }
+                              : null,
+                          icon: _status == _Status.connecting
+                              ? const SizedBox.square(
+                                  dimension: 18,
+                                  child: CircularProgressIndicator(strokeWidth: 2),
+                                )
+                              : const Icon(Icons.refresh),
+                          label: Text(_status == _Status.connecting ? 'Đang kết nối…' : 'Kết nối lại'),
+                        ),
+                      ),
+                    ),
+                  ),
                 Positioned.fill(
                   child: TerminalSelectionHandles(
                     terminal: _terminal,
@@ -1013,15 +1063,27 @@ class _TerminalScreenState extends State<TerminalScreen>
               ],
             ),
           ),
-          if (keyboardVisible && _settings.showKeyBar)
-            KeyBar(
-              modifiers: _mods,
-              hiddenKeys: _settings.hiddenKeyBarKeys,
-              onKey: _onBarKey,
-              onRaw: _onBarRaw,
-              onText: _onBarText,
-              onPaste: _paste,
-              onToggleKeyboard: _toggleKeyboard,
+          ClipRect(
+            child: AnimatedAlign(
+              alignment: Alignment.topCenter,
+              heightFactor: showKeyBar ? 1 : 0,
+              duration: const Duration(milliseconds: 180),
+              curve: Curves.easeOutCubic,
+                child: MediaQuery.removePadding(
+                  context: context,
+                  removeBottom: true,
+                  child: KeyBar(
+                    modifiers: _mods,
+                    hiddenKeys: _settings.hiddenKeyBarKeys,
+                    showSecondRow: _settings.showSecondKeyRow,
+                    onKey: _onBarKey,
+                    onRaw: _onBarRaw,
+                    onText: _onBarText,
+                    onPaste: _paste,
+                    onToggleKeyboard: _toggleKeyboard,
+                  ),
+                ),
+              ),
             ),
         ],
       ),
@@ -1041,7 +1103,7 @@ class _SettingsSheet extends StatefulWidget {
 class _SettingsSheetState extends State<_SettingsSheet> {
   late double _fontSize = snapFontSize(widget.settings.fontSize);
   late final _startup = TextEditingController(text: widget.settings.startupCommand);
-  late bool _showKeyBar = widget.settings.showKeyBar;
+  late bool _showSecondKeyRow = widget.settings.showSecondKeyRow;
   late Set<String> _hiddenKeys = Set<String>.from(widget.settings.hiddenKeyBarKeys);
 
   @override
@@ -1054,7 +1116,7 @@ class _SettingsSheetState extends State<_SettingsSheet> {
     final updated = await showModalBottomSheet<Set<String>>(
       context: context,
       isScrollControlled: true,
-      builder: (_) => KeyBarCustomizationSheet(initialHiddenKeys: _hiddenKeys),
+      builder: (_) => KeyBarCustomizationSheet(initialHiddenKeys: _hiddenKeys, showSecondRow: _showSecondKeyRow),
     );
     if (updated != null && mounted) {
       setState(() => _hiddenKeys = updated);
@@ -1065,7 +1127,7 @@ class _SettingsSheetState extends State<_SettingsSheet> {
     widget.settings
       ..fontSize = _fontSize
       ..startupCommand = _startup.text
-      ..showKeyBar = _showKeyBar
+      ..showSecondKeyRow = _showSecondKeyRow
       ..hiddenKeyBarKeys = Set<String>.from(_hiddenKeys);
     await widget.settings.save();
     if (mounted) Navigator.of(context).pop(true);
@@ -1073,7 +1135,11 @@ class _SettingsSheetState extends State<_SettingsSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final visibleKeys = keyBarCatalog.length - _hiddenKeys.length;
+    final available = [
+      for (final item in keyBarCatalog)
+        if (_showSecondKeyRow || item.row == 1) item,
+    ];
+    final visibleKeys = available.where((e) => !_hiddenKeys.contains(e.id)).length;
     return SafeArea(
       top: false,
       child: ConstrainedBox(
@@ -1104,18 +1170,18 @@ class _SettingsSheetState extends State<_SettingsSheet> {
               const SizedBox(height: 8),
               SwitchListTile(
                 contentPadding: EdgeInsets.zero,
-                title: const Text('Hiện thanh phím bên dưới'),
-                value: _showKeyBar,
-                onChanged: (v) => setState(() => _showKeyBar = v),
+                title: const Text('Hiện hàng phím thứ hai'),
+                subtitle: const Text('^C, Home/End, ký tự, Dán…'),
+                value: _showSecondKeyRow,
+                onChanged: (v) => setState(() => _showSecondKeyRow = v),
               ),
-              if (_showKeyBar)
-                ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: const Text('Tuỳ chỉnh phím hiển thị'),
-                  subtitle: Text('$visibleKeys/${keyBarCatalog.length} phím đang hiện'),
-                  trailing: const Icon(Icons.chevron_right),
-                  onTap: _customizeKeyBar,
-                ),
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('Tuỳ chỉnh phím hiển thị'),
+                subtitle: Text('$visibleKeys/${available.length} phím đang hiện'),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: _customizeKeyBar,
+              ),
               const SizedBox(height: 16),
               FilledButton(onPressed: _save, child: const Text('Lưu')),
             ],

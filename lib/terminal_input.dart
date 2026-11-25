@@ -9,6 +9,7 @@ class TerminalInput extends StatefulWidget {
     required this.onDelete,
     required this.onEnter,
     required this.child,
+    this.onAttachChanged,
   });
 
   final FocusNode focusNode;
@@ -16,6 +17,7 @@ class TerminalInput extends StatefulWidget {
   final void Function(int count) onDelete;
   final VoidCallback onEnter;
   final Widget child;
+  final VoidCallback? onAttachChanged;
 
   @override
   State<TerminalInput> createState() => TerminalInputState();
@@ -50,9 +52,10 @@ class TerminalInputState extends State<TerminalInput> with TextInputClient {
   bool get isAttached => _connection?.attached ?? false;
 
   void _onFocus() {
-    if (!widget.focusNode.hasFocus) {
-      _connection?.close();
+    if (!widget.focusNode.hasFocus && _connection != null) {
+      _connection!.close();
       _connection = null;
+      widget.onAttachChanged?.call();
     }
   }
 
@@ -78,13 +81,16 @@ class TerminalInputState extends State<TerminalInput> with TextInputClient {
       _typed = '';
       _value = _empty;
       _connection!.setEditingState(_value);
+      widget.onAttachChanged?.call();
     }
     _connection!.show();
   }
 
   void hide() {
+    final wasOpen = _connection != null;
     _connection?.close();
     _connection = null;
+    if (wasOpen) widget.onAttachChanged?.call();
     if (widget.focusNode.hasFocus) {
       widget.focusNode.unfocus();
     }
@@ -151,6 +157,7 @@ class TerminalInputState extends State<TerminalInput> with TextInputClient {
   @override
   void connectionClosed() {
     _connection = null;
+    widget.onAttachChanged?.call();
   }
 
   @override

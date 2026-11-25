@@ -96,6 +96,7 @@ class KeyBar extends StatelessWidget {
     required this.onPaste,
     required this.onToggleKeyboard,
     this.hiddenKeys = const {},
+    this.showSecondRow = true,
   });
 
   final Modifiers modifiers;
@@ -105,6 +106,7 @@ class KeyBar extends StatelessWidget {
   final VoidCallback onPaste;
   final VoidCallback onToggleKeyboard;
   final Set<String> hiddenKeys;
+  final bool showSecondRow;
 
   Widget _buildItem(KeyBarItem item) {
     return switch (item.kind) {
@@ -146,8 +148,9 @@ class KeyBar extends StatelessWidget {
         if (item.row == 1 && !hiddenKeys.contains(item.id)) item,
     ];
     final row2 = [
-      for (final item in keyBarCatalog)
-        if (item.row == 2 && !hiddenKeys.contains(item.id)) item,
+      if (showSecondRow)
+        for (final item in keyBarCatalog)
+          if (item.row == 2 && !hiddenKeys.contains(item.id)) item,
     ];
     if (row1.isEmpty && row2.isEmpty) return const SizedBox.shrink();
 
@@ -324,9 +327,10 @@ class _KeyState extends State<_Key> {
 }
 
 class KeyBarCustomizationSheet extends StatefulWidget {
-  const KeyBarCustomizationSheet({super.key, required this.initialHiddenKeys});
+  const KeyBarCustomizationSheet({super.key, required this.initialHiddenKeys, this.showSecondRow = true});
 
   final Set<String> initialHiddenKeys;
+  final bool showSecondRow;
 
   @override
   State<KeyBarCustomizationSheet> createState() => _KeyBarCustomizationSheetState();
@@ -362,7 +366,11 @@ class _KeyBarCustomizationSheetState extends State<KeyBarCustomizationSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final visibleCount = keyBarCatalog.length - _hidden.length;
+    final catalog = [
+      for (final item in keyBarCatalog)
+        if (widget.showSecondRow || item.row == 1) item,
+    ];
+    final visibleCount = catalog.where((e) => !_hidden.contains(e.id)).length;
     final maxHeight = MediaQuery.sizeOf(context).height * 0.8;
 
     return SafeArea(
@@ -378,16 +386,16 @@ class _KeyBarCustomizationSheetState extends State<KeyBarCustomizationSheet> {
                 children: [
                   Expanded(
                     child: Text(
-                      'Tuỳ chỉnh thanh phím ($visibleCount/${keyBarCatalog.length})',
+                      'Tuỳ chỉnh thanh phím ($visibleCount/${catalog.length})',
                       style: Theme.of(context).textTheme.titleMedium,
                     ),
                   ),
                   TextButton(
-                    onPressed: _hidden.isEmpty
+                    onPressed: !catalog.any((e) => _hidden.contains(e.id))
                         ? null
                         : () {
                             HapticFeedback.selectionClick();
-                            setState(_hidden.clear);
+                            setState(() => _hidden.removeAll(catalog.map((e) => e.id)));
                           },
                     child: const Text('Mặc định'),
                   ),
@@ -405,9 +413,10 @@ class _KeyBarCustomizationSheetState extends State<KeyBarCustomizationSheet> {
                       Builder(
                         builder: (context) {
                           final items = [
-                            for (final item in keyBarCatalog)
+                            for (final item in catalog)
                               if (item.group == group) item,
                           ];
+                          if (items.isEmpty) return const SizedBox.shrink();
                           final allShown = items.every((e) => !_hidden.contains(e.id));
                           return Column(
                             crossAxisAlignment: CrossAxisAlignment.stretch,

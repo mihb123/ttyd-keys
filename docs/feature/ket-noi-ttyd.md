@@ -8,6 +8,8 @@ Mở terminal ttyd (sau ttyd-auth) trong app native, tự đăng nhập lại kh
 
 - Màn đăng nhập: host, username, mật khẩu, "Nhớ mật khẩu". Đã nhớ mật khẩu thì mở app qua bước 2 (Face ID/PIN, [khoa-app.md](khoa-app.md)) rồi tự đăng nhập, vào thẳng terminal.
 - Đèn trạng thái trên AppBar: xanh = đã kết nối, vàng = đang nối, đỏ = mất kết nối (kèm nút Kết nối lại).
+- Chưa kết nối thì đáy vùng terminal có nút lớn: đỏ → "Kết nối lại", vàng → "Đang kết nối…" (không bấm được).
+- Menu ⋮ → "Kết nối lại" luôn có: đóng socket hiện tại (kể cả socket còn mở nhưng đã chết) rồi nối lại.
 - Tiêu đề AppBar = title ttyd gửi về, chưa có thì hiện host.
 - Tự nối lại khi app quay về foreground hoặc khi rớt sau phiên dài hơn 5 s. Rời app từ 10 phút trở lên thì khoá trước ([khoa-app.md](khoa-app.md)), kết nối vẫn nối lại phía sau.
 - Menu ⋮ → "Đăng xuất, quên mật khẩu".
@@ -17,7 +19,7 @@ Mở terminal ttyd (sau ttyd-auth) trong app native, tự đăng nhập lại kh
 
 - `lib/ttyd_client.dart` — `login` (POST `/login` + GET `/` lấy khóa tab), `TtydConnection` (WebSocket, giải mã khung), `AuthException`, `normalizeHost`.
 - `lib/main.dart` — `TtydKeysApp` (chọn màn đầu), `_LoginScreenState._submit`, `showLogin` (ẩn bàn phím, thay route).
-- `lib/terminal_screen.dart` — `_TerminalScreenState`: `_connect`, `_freshSession`, `_open`, `didChangeAppLifecycleState`, `_logout`, AppBar trạng thái.
+- `lib/terminal_screen.dart` — `_TerminalScreenState`: `_connect`, `_reconnect`, `_freshSession`, `_open`, `didChangeAppLifecycleState`, `_logout`, AppBar trạng thái.
 
 ## Luồng xử lý
 
@@ -31,7 +33,8 @@ Mở terminal ttyd (sau ttyd-auth) trong app native, tự đăng nhập lại kh
    - Mở được → trạng thái xanh, gửi lệnh tự chạy (nếu có), mở bàn phím (trừ khi màn khoá đang phủ).
    - `AuthException.wrongCredentials` → `_logout` (quên mật khẩu, xoá PIN), về màn đăng nhập. Lỗi khác → banner lỗi + nút "Thử lại".
 5. Socket đóng (`conn.done`) → in `[Mất kết nối]` vào terminal, trạng thái đỏ; nếu app đang foreground và kết nối đã sống > 5 s → `_connect` lại.
-6. App về foreground (`AppLifecycleState.resumed`) khi đang đỏ → `_connect`; ở nền ≥ 10 phút thì `_lockNow` trước ([khoa-app.md](khoa-app.md)).
+6. Bấm Kết nối lại (nút lớn, nút AppBar, mục menu, "Thử lại" ở banner) → `_reconnect`: bỏ qua nếu đang nối, đang khoá hoặc đang đăng xuất; gán `_conn = null`, đóng socket cũ (`TtydConnection.close` huỷ listener trước nên output còn tồn của socket cũ không ghi vào terminal; handler `conn.done` của socket cũ bỏ qua vì `_conn != conn`, không in `[Mất kết nối]`), gọi `_connect`.
+7. App về foreground (`AppLifecycleState.resumed`) khi đang đỏ → `_connect`; ở nền ≥ 10 phút thì `_lockNow` trước ([khoa-app.md](khoa-app.md)).
 
 ```mermaid
 sequenceDiagram

@@ -12,7 +12,7 @@ Nhận chữ từ bàn phím ảo iOS/Android (kể cả gõ tiếng Việt, xo�
 
 ## Code map
 
-- `lib/terminal_input.dart` — `TerminalInputState` (`TextInputClient`): `show`, `hide`, `isAttached`, `reset`, `updateEditingValue`, `_emit`, `performAction`, `connectionClosed`.
+- `lib/terminal_input.dart` — `TerminalInputState` (`TextInputClient`): `show`, `hide`, `isAttached` (báo đổi qua `onAttachChanged`), `reset`, `updateEditingValue`, `_emit`, `performAction`, `connectionClosed`.
 - `lib/terminal_screen.dart` — `_onTyped`, `_onDelete`, `_onEnter` (nối IME với `Terminal` và `Modifiers`).
 
 ## Luồng xử lý

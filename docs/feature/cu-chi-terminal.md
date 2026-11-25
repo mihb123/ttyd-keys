@@ -6,7 +6,7 @@ Dùng terminal bằng tay trên điện thoại: chạm để bật/tắt bàn p
 
 ## Phạm vi hiện tại
 
-- Chạm một lần vào terminal: bàn phím ảo đang mở thì đóng, đang đóng thì mở. Thanh phím chỉ hiện khi bàn phím ảo đang mở và bật trong cài đặt; đóng bàn phím thì terminal chiếm hết chiều cao.
+- Chạm một lần vào terminal: bàn phím ảo đang mở thì đóng, đang đóng thì mở. Thanh phím chỉ hiện khi bàn phím ảo đang mở và thu/mở cùng lúc với bàn phím ([thanh-phim.md](thanh-phim.md)); đóng bàn phím thì terminal chiếm hết chiều cao.
 - Vuốt dọc để xem nội dung cũ:
   - Buffer chính (shell thường): cuộn mượt tối đa 10.000 dòng kèm thanh cuộn (`Scrollbar`) và nút nổi `↓` để về cuối; gõ phím tự cuộn về cuối.
   - Alternate buffer (`tmux`, `vim`, `less`…): vuốt có quán tính (`FrictionSimulation`), đổi đúng toạ độ cục bộ của `RenderTerminal` để gửi sự kiện cuộn chuột (`wheelUp`/`wheelDown`, hoặc rơi về `↑`/`↓` nếu chương trình không bật mouse).
@@ -14,7 +14,7 @@ Dùng terminal bằng tay trên điện thoại: chạm để bật/tắt bàn p
   - Nhấn giữ lên từ (hoặc ký tự dấu) → rung nhẹ, chọn từ/ký tự đó; có thể kéo luôn khi đang giữ (qua được cả khoảng trắng và dấu) hoặc nhả tay rồi kéo hai đầu giọt nước (`TerminalSelectionHandles`, tự cuộn khi kéo sát mép trên/dưới ở buffer chính).
   - Menu nổi "Sao chép", "Dán", "Chọn tất cả" neo phía trên vùng chọn (không che hai đầu kéo). Sao chép xong hiện "Đã sao chép".
 - Đang có vùng chọn/menu: chạm ngoài hai đầu kéo sẽ bỏ chọn và đóng menu (không bật/tắt bàn phím). Gõ phím cũng đóng menu.
-- Hai ngón tay chụm/mở: đổi cỡ chữ 6–24, bước 0.5, nhãn "N pt" giữa màn hình khi đang kéo; nhả tay thì lưu cỡ chữ.
+- Hai ngón tay chụm/mở: đổi cỡ chữ 1–24, bước 0.5, nhãn "N pt" giữa màn hình khi đang kéo; nhả tay thì lưu cỡ chữ.
 - Chưa có: chọn khối (block selection).
 
 ## Code map
@@ -22,7 +22,7 @@ Dùng terminal bằng tay trên điện thoại: chạm để bật/tắt bàn p
 - `lib/terminal_screen.dart` — `_TerminalScreenState`: `_onPointerDown/Move/Up/Cancel`, `_startLongPressSelection`, `_updateLongPressSelection`, `_onAltScrollStart/Update/End`, `_onAltFlingTick`, `_onTerminalStateChanged`, `_onScrollPositionChanged`, `_scrollToBottom`, `_toggleKeyboard`, `_hideKeyboard`, `_showContextMenu`, `_menuAnchors`, `_copySelection`, `_selectAll`, `_dismissSelectionAndMenu`, `_onPinchStart/Update/End`.
 - `lib/selection_handles.dart` — `TerminalSelectionHandles`: hai đầu kéo vùng chọn (bắt đầu/kết thúc), vùng chạm 44×44, rung mỗi lần đổi ô, tự cuộn sát mép.
 - `lib/key_handler.dart` — `FixedMouseHandler`: sửa mã cuộn chuột của xterm 4.0.0 (`wheelUp` = 64, `wheelDown` = 65 thay vì 68/69 kèm bit Shift khiến tmux bỏ qua) và sửa lệch dòng ở chế độ normal/utf.
-- `lib/terminal_gestures.dart` — `PinchGestureRecognizer` (chỉ nhận khi ≥ 2 ngón), `TerminalScrollBehavior`, `snapFontSize`, `formatFontSize`, `minTerminalFontSize` (6), `maxTerminalFontSize` (24), `terminalFontSizeDivisions` (36).
+- `lib/terminal_gestures.dart` — `PinchGestureRecognizer` (chỉ nhận khi ≥ 2 ngón), `TerminalScrollBehavior`, `snapFontSize`, `formatFontSize`, `minTerminalFontSize` (1), `maxTerminalFontSize` (24), `terminalFontSizeDivisions` (46).
 - `lib/terminal_input.dart` — `TerminalInputState.show`, `hide`, `isAttached`.
 
 ## Luồng xử lý

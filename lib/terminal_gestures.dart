@@ -1,9 +1,9 @@
 import 'package:flutter/gestures.dart';
 import 'package:material_ui/material_ui.dart';
 
-const double minTerminalFontSize = 6;
+const double minTerminalFontSize = 1;
 const double maxTerminalFontSize = 24;
-const int terminalFontSizeDivisions = 36;
+const int terminalFontSizeDivisions = 46;
 
 double snapFontSize(double size) {
   final clamped = size.clamp(minTerminalFontSize, maxTerminalFontSize);
