@@ -37,13 +37,14 @@ lib/
   terminal_screen.dart  TerminalScreen: kết nối/nối lại, nối IME + thanh phím vào Terminal, _SettingsSheet
   ttyd_client.dart      HTTP đăng nhập + WebSocket ttyd (chỉ dart:io)
   terminal_input.dart   TextInputClient nhận bàn phím ảo, so khác biệt, phát onTyped/onDelete/onEnter
-  key_bar.dart          widget thanh phím 2 hàng, lặp phím
+  key_bar.dart          danh mục phím, widget thanh phím tuỳ chỉnh + haptic, KeyBarCustomizationSheet
   modifiers.dart        trạng thái Ctrl/Alt/Shift + applyModifiers
-  key_handler.dart      FixedKeyHandler: TerminalKey → chuỗi escape
+  key_handler.dart      FixedKeyHandler (TerminalKey → chuỗi escape), FixedMouseHandler (sửa mã cuộn chuột xterm 4)
   settings.dart         Settings load/save
   app_lock.dart         AppLock: sinh trắc học (local_auth), mã PIN (hash trong secure storage), đếm sai
   lock_screen.dart      LockScreen: màn khoá / tạo mã PIN, phủ lên TerminalScreen
-  terminal_gestures.dart PinchGestureRecognizer (≥ 2 ngón), snapFontSize/formatFontSize
+  selection_handles.dart TerminalSelectionHandles: hai đầu kéo chọn chữ kiểu mobile + tự cuộn sát mép
+  terminal_gestures.dart PinchGestureRecognizer (≥ 2 ngón), TerminalScrollBehavior, snapFontSize/formatFontSize
 ```
 
 | Quy tắc ranh giới | Lý do |

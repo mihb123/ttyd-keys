@@ -8,17 +8,19 @@ Bàn phím điện thoại thiếu Esc, Tab, Ctrl, Alt, mũi tên… Thanh phím
 
 - Hàng 1 (giãn đều): `Esc`, `Tab`, `Ctrl`, `Alt`, `Shift`, `←`, `↓`, `↑`, `→`.
 - Hàng 2 (cuộn ngang, cao 38): `^C ^D ^Z ^R ^L ^B ^A ^E ^U ^W`, `Home`, `End`, `PgUp`, `PgDn`, 9 ký tự khó gõ (pipe, `~`, `/`, `-`, backtick, backslash, `*`, `$`, `&`), dán, ẩn/hiện bàn phím.
+- Tuỳ chỉnh trong Cài đặt: bật/tắt cả thanh phím (`showKeyBar`) hoặc ẩn/hiện từng phím, từng nhóm (`KeyBarCustomizationSheet`, lưu ở `hiddenKeyBarKeys`); ẩn hết phím của một hàng thì hàng đó không chiếm chỗ.
+- Phản hồi rung (haptic): chạm phím rung `lightImpact`, khóa modifier (`locked`) rung `mediumImpact`, lặp phím mũi tên rung `selectionClick` mỗi nhịp.
 - Ctrl/Alt/Shift là phím dính 3 trạng thái: chạm 1 = áp cho phím kế tiếp (nền xanh), chạm 2 = khóa (viền trắng), chạm 3 = tắt.
 - Mũi tên giữ để lặp.
-- Thanh phím chỉ hiện khi bàn phím ảo đang mở (`MediaQuery.viewInsetsOf(context).bottom > 0`); chạm vào terminal để bật/tắt ([cu-chi-terminal.md](cu-chi-terminal.md)).
-- Chưa có: tuỳ biến bố cục, F1–F12.
+- Thanh phím chỉ hiện khi bàn phím ảo đang mở (`MediaQuery.viewInsetsOf(context).bottom > 0`) và `showKeyBar` bật; chạm vào terminal để bật/tắt ([cu-chi-terminal.md](cu-chi-terminal.md)).
+- Chưa có: đổi thứ tự phím, F1–F12.
 
 ## Code map
 
-- `lib/key_bar.dart` — `KeyBar` (bố cục 2 hàng), `_ModKey`, `_Key` (màu, lặp phím).
+- `lib/key_bar.dart` — `KeyBarItem`, `KeyBarGroup`, `keyBarCatalog` (34 phím), `KeyBar` (lọc theo `hiddenKeys`, bố cục 1–2 hàng), `_ModKey`, `_Key` (màu, lặp phím, haptic), `KeyBarCustomizationSheet`.
 - `lib/modifiers.dart` — `Modifiers` (`ChangeNotifier`, `tap`/`consume`/`reset`), `applyModifiers`, `_ctrlChar`.
 - `lib/key_handler.dart` — `FixedKeyHandler`: đổi `TerminalKey` + modifier thành chuỗi escape, rơi về `KeytabInputHandler` + `CtrlInputHandler` của xterm.
-- `lib/terminal_screen.dart` — `_onBarKey`, `_onBarText`, `_onBarRaw`, `_paste`, `_toggleKeyboard`.
+- `lib/terminal_screen.dart` — `_onBarKey`, `_onBarText`, `_onBarRaw`, `_paste`, `_toggleKeyboard`, `_SettingsSheet`.
 
 ## Luồng xử lý
 
@@ -35,7 +37,8 @@ Các nút gửi input (phím, ký tự, `^X`, dán khi clipboard có chữ) gọ
 
 ## Dữ liệu & giao thức
 
-- Không lưu gì; trạng thái modifier chỉ nằm trong bộ nhớ (`Modifiers`).
+- Trạng thái ẩn/hiện thanh phím (`showKeyBar`) và danh sách id phím ẩn (`hiddenKeyBarKeys`) lưu ở `SharedPreferences`: [cai-dat.md](cai-dat.md).
+- Trạng thái modifier chỉ nằm trong bộ nhớ (`Modifiers`).
 - Mọi phím ra WS dưới dạng khung input `0`: [api_specifications.md](../api_specifications.md#khung-tin-nhắn-ttyd-174).
 
 ## Quy tắc & lưu ý

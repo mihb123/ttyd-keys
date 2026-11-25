@@ -45,12 +45,12 @@ App Flutter (iOS + Android) làm terminal native cho ttyd sau ttyd-auth, kèm th
 | Nhóm | Trạng thái |
 |---|---|
 | Đăng nhập + kết nối ttyd, tự đăng nhập lại, tự nối lại | Xong |
-| Thanh phím + modifier dính + lặp phím | Xong |
+| Thanh phím + modifier dính + lặp phím + tuỳ chỉnh phím + haptic | Xong |
 | Nhập từ bàn phím ảo | Xong |
-| Cài đặt (cỡ chữ, lệnh tự chạy, nhớ mật khẩu) | Xong |
+| Cài đặt (cỡ chữ 6–24 pt, lệnh tự chạy, nhớ mật khẩu, ẩn/chọn phím) | Xong |
 | Build iOS/Android trên GitHub Actions | Xong |
 | Khoá app (Face ID/PIN, khoá sau 10 phút ở nền) | Xong, chưa thử trên máy thật |
-| Cử chỉ: chạm bật/tắt bàn phím, nhấn giữ copy/paste, pinch cỡ chữ | Xong, chưa thử trên máy thật |
+| Cử chỉ: bật/tắt bàn phím, cuộn lịch sử, nhấn giữ + kéo đầu chọn chữ/copy, pinch cỡ chữ | Xong, chưa thử trên máy thật |
 | Unit test | Chưa làm |
 | Nhiều host / nhiều tab | Chưa làm |
 

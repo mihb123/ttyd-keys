@@ -4,6 +4,7 @@
 
 ## 2026-11-25
 
+- Thanh phím: cho phép ẩn cả thanh hoặc chọn ẩn/hiện từng phím trong Cài đặt, kèm phản hồi rung haptic khi bấm ([thanh-phim](docs/feature/thanh-phim.md)); Cài đặt: giảm cỡ chữ nhỏ nhất xuống 6 pt ([cai-dat](docs/feature/cai-dat.md)); Cử chỉ: sửa vuốt dọc xem nội dung cũ (buffer chính + alternate buffer/tmux) và bổ sung 2 đầu kéo chọn chữ kiểu mobile để sao chép ([cu-chi-terminal](docs/feature/cu-chi-terminal.md)).
 - Build: push `main` chỉ build iOS; Android chỉ build khi chạy `make android-apk` / `make install-android` (tự gọi `build-android.yml` rồi tải về).
 - Khoá app: mở app bằng mật khẩu đã nhớ phải mở khoá bằng Face ID (máy không có thì mã PIN 4 số, sai 10 lần tự đăng xuất); rời app từ 10 phút trở lên thì khoá lại; màn đen che terminal trong trình chuyển app ([khoa-app](docs/feature/khoa-app.md)).
 - Cử chỉ: chạm terminal để bật/tắt bàn phím, thanh phím chỉ hiện cùng bàn phím ảo; nhấn giữ để sao chép/dán; hai ngón tay để đổi cỡ chữ ([cu-chi-terminal](docs/feature/cu-chi-terminal.md)).

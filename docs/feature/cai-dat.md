@@ -7,7 +7,7 @@ Nhớ host, tài khoản, mật khẩu (an toàn), cỡ chữ và lệnh tự ch
 ## Phạm vi hiện tại
 
 - Màn đăng nhập: host, username, mật khẩu, "Nhớ mật khẩu (Keychain), tự đăng nhập lại".
-- Menu ⋮ → Cài đặt (bottom sheet): cỡ chữ 9–24 (bước 0.5, `divisions: 30`), "Lệnh tự chạy khi kết nối".
+- Menu ⋮ → Cài đặt (bottom sheet): cỡ chữ 6–24 (bước 0.5, `divisions: 36`), "Lệnh tự chạy khi kết nối", bật/tắt thanh phím bên dưới (`Hiện thanh phím bên dưới`) và chọn từng phím hiển thị (`Tuỳ chỉnh phím hiển thị`, [thanh-phim.md](thanh-phim.md)).
 - Hai ngón tay chụm/mở trên terminal cũng đổi và lưu cỡ chữ ([cu-chi-terminal.md](cu-chi-terminal.md)).
 - Menu ⋮ → "Đăng xuất, quên mật khẩu": đóng WS, xoá mật khẩu và mã PIN, về màn đăng nhập.
 - Chưa có: nhiều hồ sơ host, theme sáng.
@@ -16,13 +16,14 @@ Nhớ host, tài khoản, mật khẩu (an toàn), cỡ chữ và lệnh tự ch
 
 - `lib/settings.dart` — `Settings`: `load`, `save`, `forgetPassword`.
 - `lib/terminal_screen.dart` — `_SettingsSheet`, `_openSettings`, `_logout`.
+- `lib/key_bar.dart` — `KeyBarCustomizationSheet`, `keyBarCatalog`.
 - `lib/main.dart` — `main` (`Settings.load`), `_LoginScreenState._submit`.
 
 ## Luồng xử lý
 
 1. `main` gọi `Settings.load()` trước `runApp`; đọc mật khẩu từ secure storage chỉ khi `rememberPassword`.
 2. Đăng nhập thành công (`_LoginScreenState._submit`) → `save()`; không nhớ mật khẩu thì xoá mật khẩu khỏi bộ nhớ sau khi lưu.
-3. Bottom sheet Cài đặt bấm Lưu → gán `fontSize`, `startupCommand` → `save()` → `TerminalScreen` `setState` để vẽ lại.
+3. Bottom sheet Cài đặt bấm Lưu → gán `fontSize`, `startupCommand`, `showKeyBar`, `hiddenKeyBarKeys` → `save()` → `TerminalScreen` `setState` để vẽ lại.
 4. Đăng xuất → `forgetPassword()` (xoá key `password`) → `save()` → `AppLock.clear()` (xoá `pinHash`, `pinFails`) → màn đăng nhập.
 5. Tự đăng nhập lại thất bại vì sai mật khẩu → `forgetPassword()` ([ket-noi-ttyd.md](ket-noi-ttyd.md)).
 
@@ -33,8 +34,10 @@ Nhớ host, tài khoản, mật khẩu (an toàn), cỡ chữ và lệnh tự ch
 | `host` | SharedPreferences | `remote-ocl.mihb.site` | Host ttyd-auth (không scheme, không path) |
 | `username` | SharedPreferences | rỗng | Tài khoản ttyd-auth |
 | `rememberPassword` | SharedPreferences | `false` | Nhớ mật khẩu, tự đăng nhập lại |
-| `fontSize` | SharedPreferences | `14` | Cỡ chữ terminal |
+| `fontSize` | SharedPreferences | `14` | Cỡ chữ terminal (6–24 pt) |
 | `startupCommand` | SharedPreferences | `tmux new -A -s mobile` | Gửi kèm `\r` sau output đầu tiên (chờ tối đa 3s) |
+| `showKeyBar` | SharedPreferences | `true` | Hiện hay ẩn toàn bộ thanh phím bên dưới |
+| `hiddenKeyBarKeys` | SharedPreferences | `[]` | Danh sách id phím bị ẩn trên thanh phím (`keyBarCatalog`) |
 | `password` | `flutter_secure_storage` (Keychain iOS / Keystore Android) | — | Chỉ có khi `rememberPassword` |
 | `pinHash` | `flutter_secure_storage` | — | `salt:sha256(salt:pin)` của mã PIN 4 số ([khoa-app.md](khoa-app.md)); xoá khi đăng xuất |
 | `pinFails` | `flutter_secure_storage` | — | Số lần nhập PIN sai liên tiếp; tới 10 thì đăng xuất |

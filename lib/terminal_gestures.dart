@@ -1,8 +1,9 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
+import 'package:material_ui/material_ui.dart';
 
-const double minTerminalFontSize = 9;
+const double minTerminalFontSize = 6;
 const double maxTerminalFontSize = 24;
+const int terminalFontSizeDivisions = 36;
 
 double snapFontSize(double size) {
   final clamped = size.clamp(minTerminalFontSize, maxTerminalFontSize);
@@ -12,6 +13,37 @@ double snapFontSize(double size) {
 String formatFontSize(double size) {
   final snapped = snapFontSize(size);
   return snapped == snapped.roundToDouble() ? snapped.toInt().toString() : snapped.toStringAsFixed(1);
+}
+
+class _BoundedBouncingScrollPhysics extends BouncingScrollPhysics {
+  const _BoundedBouncingScrollPhysics({super.parent});
+
+  @override
+  _BoundedBouncingScrollPhysics applyTo(ScrollPhysics? ancestor) {
+    return _BoundedBouncingScrollPhysics(parent: buildParent(ancestor));
+  }
+
+  @override
+  bool shouldAcceptUserOffset(ScrollMetrics position) {
+    return position.minScrollExtent < position.maxScrollExtent;
+  }
+}
+
+class TerminalScrollBehavior extends MaterialScrollBehavior {
+  const TerminalScrollBehavior({required this.altBuffer});
+
+  final bool altBuffer;
+
+  @override
+  ScrollPhysics getScrollPhysics(BuildContext context) {
+    if (altBuffer) return const NeverScrollableScrollPhysics();
+    return switch (getPlatform(context)) {
+      TargetPlatform.iOS || TargetPlatform.macOS => const _BoundedBouncingScrollPhysics(
+          parent: RangeMaintainingScrollPhysics(),
+        ),
+      _ => const ClampingScrollPhysics(parent: RangeMaintainingScrollPhysics()),
+    };
+  }
 }
 
 /// Gesture recognizer that only competes and wins the gesture arena when at

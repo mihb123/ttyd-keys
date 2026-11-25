@@ -1,7 +1,9 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:math' as math;
 
 import 'package:flutter/gestures.dart';
+import 'package:flutter/physics.dart';
 import 'package:flutter/services.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:xterm/xterm.dart';
@@ -12,6 +14,7 @@ import 'key_handler.dart';
 import 'lock_screen.dart';
 import 'main.dart';
 import 'modifiers.dart';
+import 'selection_handles.dart';
 import 'settings.dart';
 import 'terminal_gestures.dart';
 import 'terminal_input.dart';
@@ -35,14 +38,22 @@ class TerminalScreen extends StatefulWidget {
   State<TerminalScreen> createState() => _TerminalScreenState();
 }
 
-class _TerminalScreenState extends State<TerminalScreen> with WidgetsBindingObserver {
-  final _terminal = Terminal(maxLines: 10000, inputHandler: const FixedKeyHandler());
+class _TerminalScreenState extends State<TerminalScreen>
+    with WidgetsBindingObserver, SingleTickerProviderStateMixin {
+  final _terminal = Terminal(
+    maxLines: 10000,
+    inputHandler: const FixedKeyHandler(),
+    mouseHandler: const FixedMouseHandler(),
+  );
+  final _terminalViewKey = GlobalKey<TerminalViewState>();
   final _inputKey = GlobalKey<TerminalInputState>();
   final _controller = TerminalController();
+  final _scrollController = ScrollController();
   final _focus = FocusNode();
   final _mods = Modifiers();
   final _contextMenuController = ContextMenuController();
   final Set<int> _activePointers = {};
+  late final AnimationController _altFling = AnimationController.unbounded(vsync: this)..addListener(_onAltFlingTick);
 
   late TtydSession? _session = widget.initialSession;
   TtydConnection? _conn;
@@ -69,15 +80,29 @@ class _TerminalScreenState extends State<TerminalScreen> with WidgetsBindingObse
   bool _longPressTriggered = false;
   bool _hadSelectionOrMenuOnDown = false;
   bool _wasKeyboardOpenOnDown = false;
-  int? _dismissedPointer;
   Timer? _longPressTimer;
   bool _lastKeyboardVisible = false;
   bool _pinching = false;
   double _pinchBaseFontSize = 14;
+  bool _isAltBuffer = false;
+  bool _isScrolledUp = false;
+  double _altScrollCarry = 0;
+  double _altFlingLast = 0;
+  Offset? _altScrollLocalPos;
+  bool _draggingHandle = false;
+  BufferRangeLine? _longPressOriginWord;
+  CellOffset? _lastLongPressCell;
 
   Settings get _settings => widget.settings;
 
   bool get _covered => _locked || _pinSetup;
+
+  double get _lineHeight {
+    final state = _terminalViewKey.currentState;
+    if (state == null || !state.mounted) return 16;
+    final render = state.renderTerminal;
+    return render.attached ? render.lineHeight : 16;
+  }
 
   @override
   void initState() {
@@ -85,6 +110,9 @@ class _TerminalScreenState extends State<TerminalScreen> with WidgetsBindingObse
     WidgetsBinding.instance.addObserver(this);
     _terminal.onOutput = _send;
     _terminal.onResize = (w, h, _, _) => _conn?.resize(w, h);
+    _terminal.addListener(_onTerminalStateChanged);
+    _scrollController.addListener(_onScrollPositionChanged);
+    _controller.addListener(_onSelectionChanged);
     WidgetsBinding.instance.addPostFrameCallback((_) => _connect());
     if (!widget.lockOnStart) _checkPinSetup();
   }
@@ -129,13 +157,62 @@ class _TerminalScreenState extends State<TerminalScreen> with WidgetsBindingObse
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _terminal.removeListener(_onTerminalStateChanged);
+    _scrollController.removeListener(_onScrollPositionChanged);
+    _controller.removeListener(_onSelectionChanged);
     _longPressTimer?.cancel();
+    _altFling.dispose();
     _contextMenuController.remove();
     _conn?.close();
+    _scrollController.dispose();
     _controller.dispose();
     _focus.dispose();
     _mods.dispose();
     super.dispose();
+  }
+
+  void _onTerminalStateChanged() {
+    final alt = _terminal.isUsingAltBuffer;
+    if (alt == _isAltBuffer) return;
+    _altFling.stop();
+    _altScrollCarry = 0;
+    if (alt && _scrollController.hasClients && _scrollController.position.pixels != 0) {
+      _scrollController.jumpTo(0);
+    }
+    if (mounted) {
+      setState(() {
+        _isAltBuffer = alt;
+        if (alt) _isScrolledUp = false;
+      });
+    }
+  }
+
+  void _onScrollPositionChanged() {
+    if (_isAltBuffer || !_scrollController.hasClients) return;
+    final pos = _scrollController.position;
+    final threshold = _lineHeight * 1.5;
+    final scrolledUp = pos.maxScrollExtent - pos.pixels > threshold;
+    if (scrolledUp != _isScrolledUp && mounted) {
+      setState(() => _isScrolledUp = scrolledUp);
+    }
+    if (_contextMenuController.isShown && !_draggingHandle) {
+      _contextMenuController.remove();
+    }
+  }
+
+  void _onSelectionChanged() {
+    final wantSuspend = _pinching || _controller.selection != null;
+    if (_controller.suspendedPointerInputs != wantSuspend) {
+      _controller.setSuspendPointerInput(wantSuspend);
+    }
+  }
+
+  void _scrollToBottom() {
+    if (_isAltBuffer || !_scrollController.hasClients) return;
+    final pos = _scrollController.position;
+    if (pos.pixels < pos.maxScrollExtent) {
+      pos.jumpTo(pos.maxScrollExtent);
+    }
   }
 
   @override
@@ -261,6 +338,7 @@ class _TerminalScreenState extends State<TerminalScreen> with WidgetsBindingObse
 
   bool _onTyped(String text) {
     _dismissSelectionAndMenu();
+    _scrollToBottom();
     if (!_mods.any || text.runes.length != 1) {
       _terminal.textInput(text);
       return false;
@@ -272,6 +350,7 @@ class _TerminalScreenState extends State<TerminalScreen> with WidgetsBindingObse
 
   void _onDelete(int count) {
     _dismissSelectionAndMenu();
+    _scrollToBottom();
     if (count == 1 && _mods.any) {
       _terminal.keyInput(TerminalKey.backspace, ctrl: _mods.isOn(Mod.ctrl), alt: _mods.isOn(Mod.alt));
       _mods.consume();
@@ -282,12 +361,14 @@ class _TerminalScreenState extends State<TerminalScreen> with WidgetsBindingObse
 
   void _onEnter() {
     _dismissSelectionAndMenu();
+    _scrollToBottom();
     _terminal.keyInput(TerminalKey.enter, alt: _mods.isOn(Mod.alt));
     _mods.consume();
   }
 
   void _onBarKey(TerminalKey key) {
     _dismissSelectionAndMenu();
+    _scrollToBottom();
     _terminal.keyInput(key, ctrl: _mods.isOn(Mod.ctrl), alt: _mods.isOn(Mod.alt), shift: _mods.isOn(Mod.shift));
     _mods.consume();
     _inputKey.currentState?.reset();
@@ -300,12 +381,14 @@ class _TerminalScreenState extends State<TerminalScreen> with WidgetsBindingObse
 
   void _onBarRaw(String data) {
     _dismissSelectionAndMenu();
+    _scrollToBottom();
     _send(data);
     _inputKey.currentState?.reset();
   }
 
   Future<void> _paste() async {
     _dismissSelectionAndMenu();
+    _scrollToBottom();
     final data = await Clipboard.getData(Clipboard.kTextPlain);
     final text = data?.text;
     if (text == null || text.isEmpty) return;
@@ -338,37 +421,49 @@ class _TerminalScreenState extends State<TerminalScreen> with WidgetsBindingObse
     }
   }
 
-  void _showContextMenu(Offset globalPosition) {
+  void _showContextMenu([Offset? fallbackGlobalPos]) {
     if (!mounted) return;
-    final selection = _controller.selection;
+    final selection = _controller.selection?.normalized;
     final hasSelection = selection != null && _terminal.buffer.getText(selection).isNotEmpty;
     final items = <ContextMenuButtonItem>[
       if (hasSelection) ContextMenuButtonItem(label: 'Sao chép', onPressed: _copySelection),
       ContextMenuButtonItem(label: 'Dán', onPressed: _pasteFromMenu),
-      if (hasSelection) ContextMenuButtonItem(label: 'Chọn tất cả', onPressed: () => _selectAll(globalPosition)),
+      ContextMenuButtonItem(label: 'Chọn tất cả', onPressed: _selectAll),
     ];
+    final anchors = _menuAnchors(selection, fallbackGlobalPos);
     _contextMenuController.show(
       context: context,
-      contextMenuBuilder: (_) => Stack(
-        children: [
-          Positioned.fill(
-            child: Listener(
-              behavior: HitTestBehavior.translucent,
-              onPointerDown: (e) {
-                _dismissedPointer = e.pointer;
-                _dismissSelectionAndMenu();
-              },
-            ),
-          ),
-          AdaptiveTextSelectionToolbar.buttonItems(
-            anchors: TextSelectionToolbarAnchors(
-              primaryAnchor: globalPosition - const Offset(0, 12),
-              secondaryAnchor: globalPosition + const Offset(0, 16),
-            ),
-            buttonItems: items,
-          ),
-        ],
+      contextMenuBuilder: (_) => AdaptiveTextSelectionToolbar.buttonItems(
+        anchors: anchors,
+        buttonItems: items,
       ),
+    );
+  }
+
+  TextSelectionToolbarAnchors _menuAnchors(BufferRange? selection, Offset? fallbackGlobalPos) {
+    final state = _terminalViewKey.currentState;
+    if (selection != null && state != null && state.mounted) {
+      final render = state.renderTerminal;
+      if (render.attached) {
+        final beginGlobal = render.localToGlobal(render.getOffset(selection.begin));
+        final endGlobal = render.localToGlobal(render.getOffset(selection.end));
+        final topLeft = render.localToGlobal(Offset.zero);
+        final bottomRight = render.localToGlobal(Offset(render.size.width, render.size.height));
+        final topY = math.min(beginGlobal.dy, endGlobal.dy).clamp(topLeft.dy, bottomRight.dy);
+        final bottomY = (math.max(beginGlobal.dy, endGlobal.dy) + render.cellSize.height).clamp(topLeft.dy, bottomRight.dy);
+        final centerX = selection.begin.y == selection.end.y
+            ? ((beginGlobal.dx + endGlobal.dx) / 2).clamp(topLeft.dx + 16, bottomRight.dx - 16)
+            : (topLeft.dx + bottomRight.dx) / 2;
+        return TextSelectionToolbarAnchors(
+          primaryAnchor: Offset(centerX, topY - 12),
+          secondaryAnchor: Offset(centerX, bottomY + 36),
+        );
+      }
+    }
+    final pos = fallbackGlobalPos ?? MediaQuery.sizeOf(context).center(Offset.zero);
+    return TextSelectionToolbarAnchors(
+      primaryAnchor: pos - const Offset(0, 12),
+      secondaryAnchor: pos + const Offset(0, 16),
     );
   }
 
@@ -389,17 +484,153 @@ class _TerminalScreenState extends State<TerminalScreen> with WidgetsBindingObse
     _paste();
   }
 
-  void _selectAll(Offset anchor) {
+  void _selectAll() {
     final height = _terminal.buffer.height;
     final viewHeight = _terminal.viewHeight;
     if (height <= 0 || _terminal.viewWidth <= 0) return;
-    final startRow = (height - viewHeight).clamp(0, height - 1);
+    final lineHeight = _lineHeight;
+    final int startRow;
+    final int endRow;
+    if (!_isAltBuffer && _scrollController.hasClients && lineHeight > 0) {
+      final firstVisible = (_scrollController.position.pixels ~/ lineHeight).clamp(0, height - 1);
+      startRow = firstVisible;
+      endRow = (firstVisible + viewHeight - 1).clamp(startRow, height - 1);
+    } else {
+      startRow = (height - viewHeight).clamp(0, height - 1);
+      endRow = height - 1;
+    }
     _controller.setSelection(
       _terminal.buffer.createAnchor(0, startRow),
-      _terminal.buffer.createAnchor(_terminal.viewWidth, height - 1),
+      _terminal.buffer.createAnchor(_terminal.viewWidth, endRow),
       mode: SelectionMode.line,
     );
-    _showContextMenu(anchor);
+    _showContextMenu();
+  }
+
+  void _startLongPressSelection(Offset globalPos) {
+    final state = _terminalViewKey.currentState;
+    if (state == null || !state.mounted) return;
+    final render = state.renderTerminal;
+    if (!render.attached) return;
+    final cell = render.getCellOffset(render.globalToLocal(globalPos));
+    final word = _terminal.buffer.getWordBoundary(cell);
+    if (word != null) {
+      _longPressOriginWord = word;
+      _lastLongPressCell = cell;
+      _controller.setSelection(
+        _terminal.buffer.createAnchorFromOffset(word.begin),
+        _terminal.buffer.createAnchorFromOffset(word.end),
+        mode: SelectionMode.line,
+      );
+      return;
+    }
+    if (cell.y < _terminal.buffer.lines.length) {
+      final codePoint = _terminal.buffer.lines[cell.y].getCodePoint(cell.x);
+      if (codePoint != 0 && codePoint != 0x20) {
+        final end = CellOffset((cell.x + 1).clamp(0, _terminal.viewWidth), cell.y);
+        final range = BufferRangeLine(cell, end);
+        _longPressOriginWord = range;
+        _lastLongPressCell = cell;
+        _controller.setSelection(
+          _terminal.buffer.createAnchorFromOffset(range.begin),
+          _terminal.buffer.createAnchorFromOffset(range.end),
+          mode: SelectionMode.line,
+        );
+        return;
+      }
+    }
+    _longPressOriginWord = null;
+    _lastLongPressCell = null;
+  }
+
+  void _updateLongPressSelection(Offset globalPos) {
+    final origin = _longPressOriginWord;
+    final state = _terminalViewKey.currentState;
+    if (origin == null || state == null || !state.mounted) return;
+    final render = state.renderTerminal;
+    if (!render.attached) return;
+    final cell = render.getCellOffset(render.globalToLocal(globalPos));
+    if (cell == _lastLongPressCell) return;
+    _lastLongPressCell = cell;
+    HapticFeedback.selectionClick();
+    final targetWord = _terminal.buffer.getWordBoundary(cell);
+    final BufferRangeLine range;
+    if (targetWord != null) {
+      range = origin.merge(targetWord);
+    } else {
+      final cellEnd = CellOffset((cell.x + 1).clamp(0, _terminal.viewWidth), cell.y);
+      range = cell.isBefore(origin.begin)
+          ? BufferRangeLine(cell, origin.end)
+          : BufferRangeLine(origin.begin, cellEnd.isAfter(origin.end) ? cellEnd : origin.end);
+    }
+    _controller.setSelection(
+      _terminal.buffer.createAnchorFromOffset(range.begin),
+      _terminal.buffer.createAnchorFromOffset(range.end),
+      mode: SelectionMode.line,
+    );
+  }
+
+  void _onAltScrollStart(DragStartDetails details) {
+    _altFling.stop();
+    _altScrollCarry = 0;
+    _dismissSelectionAndMenu();
+    final state = _terminalViewKey.currentState;
+    if (state != null && state.mounted && state.renderTerminal.attached) {
+      _altScrollLocalPos = state.renderTerminal.globalToLocal(details.globalPosition);
+    } else {
+      _altScrollLocalPos = null;
+    }
+  }
+
+  void _onAltScrollUpdate(DragUpdateDetails details) {
+    final state = _terminalViewKey.currentState;
+    if (state == null || !state.mounted || !state.renderTerminal.attached) return;
+    _altScrollLocalPos = state.renderTerminal.globalToLocal(details.globalPosition);
+    _consumeAltScrollDelta(details.delta.dy);
+  }
+
+  void _onAltScrollEnd(DragEndDetails details) {
+    final velocity = details.velocity.pixelsPerSecond.dy;
+    if (velocity.abs() < 120) return;
+    _altFlingLast = 0;
+    _altFling.animateWith(FrictionSimulation(0.08, 0, velocity));
+  }
+
+  void _onAltFlingTick() {
+    if (!_isAltBuffer) {
+      _altFling.stop();
+      return;
+    }
+    final current = _altFling.value;
+    final delta = current - _altFlingLast;
+    _altFlingLast = current;
+    _consumeAltScrollDelta(delta);
+  }
+
+  void _consumeAltScrollDelta(double dy) {
+    final state = _terminalViewKey.currentState;
+    if (state == null || !state.mounted) return;
+    final render = state.renderTerminal;
+    if (!render.attached) return;
+    final lineHeight = render.lineHeight;
+    if (lineHeight <= 0) return;
+    _altScrollCarry += dy;
+    final steps = _altScrollCarry ~/ lineHeight;
+    if (steps == 0) return;
+    _altScrollCarry -= steps * lineHeight;
+    final up = steps > 0;
+    final pos = _altScrollLocalPos ?? Offset(render.size.width / 2, render.size.height / 2);
+    final cell = render.getCellOffset(pos);
+    for (var i = 0; i < steps.abs(); i++) {
+      final handled = _terminal.mouseInput(
+        up ? TerminalMouseButton.wheelUp : TerminalMouseButton.wheelDown,
+        TerminalMouseButtonState.down,
+        cell,
+      );
+      if (!handled) {
+        _terminal.keyInput(up ? TerminalKey.arrowUp : TerminalKey.arrowDown);
+      }
+    }
   }
 
   double get _touchSlop => MediaQuery.maybeGestureSettingsOf(context)?.touchSlop ?? kTouchSlop;
@@ -408,12 +639,15 @@ class _TerminalScreenState extends State<TerminalScreen> with WidgetsBindingObse
     if (event.kind == PointerDeviceKind.mouse && event.buttons != kPrimaryButton) {
       return;
     }
+    _altFling.stop();
     _activePointers.add(event.pointer);
     if (_activePointers.length > 1) {
       _multiTouchUsed = true;
       _longPressTimer?.cancel();
       _longPressTimer = null;
       _longPressTriggered = false;
+      _longPressOriginWord = null;
+      _lastLongPressCell = null;
       _singlePointer = null;
       return;
     }
@@ -423,27 +657,33 @@ class _TerminalScreenState extends State<TerminalScreen> with WidgetsBindingObse
     _movedBeyondSlop = false;
     _multiTouchUsed = false;
     _longPressTriggered = false;
-    _hadSelectionOrMenuOnDown =
-        _controller.selection != null || _contextMenuController.isShown || _dismissedPointer == event.pointer;
+    _longPressOriginWord = null;
+    _lastLongPressCell = null;
+    _hadSelectionOrMenuOnDown = _controller.selection != null || _contextMenuController.isShown;
     _wasKeyboardOpenOnDown = _isKeyboardOpen;
 
     _longPressTimer?.cancel();
     if (event.kind == PointerDeviceKind.touch) {
       final pointer = event.pointer;
+      final downPos = event.position;
       _longPressTimer = Timer(kLongPressTimeout, () {
         if (!mounted || _singlePointer != pointer || _movedBeyondSlop || _multiTouchUsed) {
           return;
         }
         _longPressTriggered = true;
-        HapticFeedback.selectionClick();
+        HapticFeedback.mediumImpact();
+        _startLongPressSelection(downPos);
       });
     }
   }
 
   void _onPointerMove(PointerMoveEvent event) {
-    if (event.pointer != _singlePointer || _longPressTriggered || _movedBeyondSlop) {
+    if (event.pointer != _singlePointer) return;
+    if (_longPressTriggered) {
+      _updateLongPressSelection(event.position);
       return;
     }
+    if (_movedBeyondSlop) return;
     final downPos = _pointerDownPos;
     if (downPos != null && (event.position - downPos).distance > _touchSlop) {
       _movedBeyondSlop = true;
@@ -466,12 +706,13 @@ class _TerminalScreenState extends State<TerminalScreen> with WidgetsBindingObse
       _longPressTimer?.cancel();
       _longPressTimer = null;
       _longPressTriggered = false;
+      _longPressOriginWord = null;
+      _lastLongPressCell = null;
       _singlePointer = null;
       _pointerDownPos = null;
     }
     if (_activePointers.isEmpty) {
       _multiTouchUsed = false;
-      _dismissedPointer = null;
     }
 
     if (!isSingle || wasMultiTouch) return;
@@ -508,20 +749,23 @@ class _TerminalScreenState extends State<TerminalScreen> with WidgetsBindingObse
       _longPressTimer?.cancel();
       _longPressTimer = null;
       _longPressTriggered = false;
+      _longPressOriginWord = null;
+      _lastLongPressCell = null;
       _singlePointer = null;
       _pointerDownPos = null;
     }
     if (_activePointers.isEmpty) {
       _multiTouchUsed = false;
-      _dismissedPointer = null;
     }
   }
 
   void _onPinchStart() {
+    _altFling.stop();
     _dismissSelectionAndMenu();
+    _pinching = true;
     _controller.setSuspendPointerInput(true);
     _pinchBaseFontSize = _settings.fontSize;
-    setState(() => _pinching = true);
+    setState(() {});
   }
 
   void _onPinchUpdate(double scale) {
@@ -532,10 +776,9 @@ class _TerminalScreenState extends State<TerminalScreen> with WidgetsBindingObse
   }
 
   void _onPinchEnd() {
-    _controller.setSuspendPointerInput(false);
-    if (_pinching) {
-      setState(() => _pinching = false);
-    }
+    _pinching = false;
+    _controller.setSuspendPointerInput(_controller.selection != null);
+    setState(() {});
     _settings.save();
   }
 
@@ -553,6 +796,7 @@ class _TerminalScreenState extends State<TerminalScreen> with WidgetsBindingObse
   Future<void> _logout({String? error}) async {
     if (_loggingOut) return;
     _loggingOut = true;
+    _dismissSelectionAndMenu();
     final conn = _conn;
     _conn = null;
     await conn?.close();
@@ -669,6 +913,17 @@ class _TerminalScreenState extends State<TerminalScreen> with WidgetsBindingObse
                             ..onPinchEnd = _onPinchEnd;
                         },
                       ),
+                      if (_isAltBuffer)
+                        VerticalDragGestureRecognizer:
+                            GestureRecognizerFactoryWithHandlers<VerticalDragGestureRecognizer>(
+                          () => VerticalDragGestureRecognizer(debugOwner: this),
+                          (instance) {
+                            instance
+                              ..onStart = _onAltScrollStart
+                              ..onUpdate = _onAltScrollUpdate
+                              ..onEnd = _onAltScrollEnd;
+                          },
+                        ),
                     },
                     child: TerminalInput(
                       key: _inputKey,
@@ -676,25 +931,66 @@ class _TerminalScreenState extends State<TerminalScreen> with WidgetsBindingObse
                       onTyped: _onTyped,
                       onDelete: _onDelete,
                       onEnter: _onEnter,
-                      child: TerminalView(
-                        _terminal,
-                        controller: _controller,
-                        focusNode: _focus,
-                        hardwareKeyboardOnly: true,
-                        textStyle: TerminalStyle(fontSize: _settings.fontSize, fontFamily: terminalFontFamily),
-                        padding: const EdgeInsets.all(4),
-                        onKeyEvent: (_, event) {
-                          if (event is KeyDownEvent &&
-                              !HardwareKeyboard.instance.isControlPressed &&
-                              !HardwareKeyboard.instance.isMetaPressed) {
-                            _dismissSelectionAndMenu();
-                          }
-                          return KeyEventResult.ignored;
-                        },
+                      child: ScrollConfiguration(
+                        behavior: TerminalScrollBehavior(altBuffer: _isAltBuffer),
+                        child: Scrollbar(
+                          controller: _scrollController,
+                          child: TerminalView(
+                            _terminal,
+                            key: _terminalViewKey,
+                            controller: _controller,
+                            scrollController: _scrollController,
+                            focusNode: _focus,
+                            hardwareKeyboardOnly: true,
+                            textStyle: TerminalStyle(fontSize: _settings.fontSize, fontFamily: terminalFontFamily),
+                            padding: const EdgeInsets.all(4),
+                            onKeyEvent: (_, event) {
+                              if (event is KeyDownEvent &&
+                                  !HardwareKeyboard.instance.isControlPressed &&
+                                  !HardwareKeyboard.instance.isMetaPressed) {
+                                _dismissSelectionAndMenu();
+                              }
+                              return KeyEventResult.ignored;
+                            },
+                          ),
+                        ),
                       ),
                     ),
                   ),
                 ),
+                Positioned.fill(
+                  child: TerminalSelectionHandles(
+                    terminal: _terminal,
+                    controller: _controller,
+                    scrollController: _scrollController,
+                    terminalViewKey: _terminalViewKey,
+                    onDragStart: () {
+                      _draggingHandle = true;
+                      _contextMenuController.remove();
+                    },
+                    onDragEnd: () {
+                      _draggingHandle = false;
+                      if (_controller.selection != null) _showContextMenu();
+                    },
+                  ),
+                ),
+                if (_isScrolledUp && !_isAltBuffer)
+                  Positioned(
+                    right: 12,
+                    bottom: 12,
+                    child: Material(
+                      color: const Color(0xCC26282C),
+                      shape: const CircleBorder(side: BorderSide(color: Colors.white24)),
+                      child: IconButton(
+                        tooltip: 'Cuộn xuống cuối',
+                        icon: const Icon(Icons.keyboard_arrow_down, color: Colors.white),
+                        onPressed: () {
+                          HapticFeedback.lightImpact();
+                          _scrollToBottom();
+                        },
+                      ),
+                    ),
+                  ),
                 if (_pinching)
                   IgnorePointer(
                     child: Center(
@@ -717,9 +1013,10 @@ class _TerminalScreenState extends State<TerminalScreen> with WidgetsBindingObse
               ],
             ),
           ),
-          if (keyboardVisible)
+          if (keyboardVisible && _settings.showKeyBar)
             KeyBar(
               modifiers: _mods,
+              hiddenKeys: _settings.hiddenKeyBarKeys,
               onKey: _onBarKey,
               onRaw: _onBarRaw,
               onText: _onBarText,
@@ -744,6 +1041,8 @@ class _SettingsSheet extends StatefulWidget {
 class _SettingsSheetState extends State<_SettingsSheet> {
   late double _fontSize = snapFontSize(widget.settings.fontSize);
   late final _startup = TextEditingController(text: widget.settings.startupCommand);
+  late bool _showKeyBar = widget.settings.showKeyBar;
+  late Set<String> _hiddenKeys = Set<String>.from(widget.settings.hiddenKeyBarKeys);
 
   @override
   void dispose() {
@@ -751,42 +1050,77 @@ class _SettingsSheetState extends State<_SettingsSheet> {
     super.dispose();
   }
 
+  Future<void> _customizeKeyBar() async {
+    final updated = await showModalBottomSheet<Set<String>>(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => KeyBarCustomizationSheet(initialHiddenKeys: _hiddenKeys),
+    );
+    if (updated != null && mounted) {
+      setState(() => _hiddenKeys = updated);
+    }
+  }
+
   Future<void> _save() async {
     widget.settings
       ..fontSize = _fontSize
-      ..startupCommand = _startup.text;
+      ..startupCommand = _startup.text
+      ..showKeyBar = _showKeyBar
+      ..hiddenKeyBarKeys = Set<String>.from(_hiddenKeys);
     await widget.settings.save();
     if (mounted) Navigator.of(context).pop(true);
   }
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: EdgeInsets.fromLTRB(16, 16, 16, 16 + MediaQuery.viewInsetsOf(context).bottom),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Text('Cỡ chữ: ${formatFontSize(_fontSize)} pt'),
-          Slider(
-            value: _fontSize,
-            min: minTerminalFontSize,
-            max: maxTerminalFontSize,
-            divisions: 30,
-            onChanged: (v) => setState(() => _fontSize = snapFontSize(v)),
+    final visibleKeys = keyBarCatalog.length - _hiddenKeys.length;
+    return SafeArea(
+      top: false,
+      child: ConstrainedBox(
+        constraints: BoxConstraints(maxHeight: MediaQuery.sizeOf(context).height * 0.85),
+        child: SingleChildScrollView(
+          padding: EdgeInsets.fromLTRB(16, 16, 16, 16 + MediaQuery.viewInsetsOf(context).bottom),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text('Cỡ chữ: ${formatFontSize(_fontSize)} pt'),
+              Slider(
+                value: _fontSize,
+                min: minTerminalFontSize,
+                max: maxTerminalFontSize,
+                divisions: terminalFontSizeDivisions,
+                onChanged: (v) => setState(() => _fontSize = snapFontSize(v)),
+              ),
+              TextField(
+                controller: _startup,
+                autocorrect: false,
+                decoration: const InputDecoration(
+                  labelText: 'Lệnh tự chạy khi kết nối',
+                  hintText: 'vd: tmux new -A -s main',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 8),
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('Hiện thanh phím bên dưới'),
+                value: _showKeyBar,
+                onChanged: (v) => setState(() => _showKeyBar = v),
+              ),
+              if (_showKeyBar)
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Tuỳ chỉnh phím hiển thị'),
+                  subtitle: Text('$visibleKeys/${keyBarCatalog.length} phím đang hiện'),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: _customizeKeyBar,
+                ),
+              const SizedBox(height: 16),
+              FilledButton(onPressed: _save, child: const Text('Lưu')),
+            ],
           ),
-          TextField(
-            controller: _startup,
-            autocorrect: false,
-            decoration: const InputDecoration(
-              labelText: 'Lệnh tự chạy khi kết nối',
-              hintText: 'vd: tmux new -A -s main',
-              border: OutlineInputBorder(),
-            ),
-          ),
-          const SizedBox(height: 16),
-          FilledButton(onPressed: _save, child: const Text('Lưu')),
-        ],
+        ),
       ),
     );
   }

@@ -5,9 +5,9 @@ App Flutter (iOS + Android) làm terminal native cho ttyd sau ttyd-auth (`remote
 ## Tính năng chính
 
 - **Kết nối**: đăng nhập ttyd-auth, tự đăng nhập lại khi phiên hết hạn, tự nối lại khi rớt mạng. Xem [ket-noi-ttyd.md](docs/feature/ket-noi-ttyd.md).
-- **Thanh phím**: Esc, Tab, Ctrl/Alt/Shift dính, mũi tên giữ để lặp, Home/End/PgUp/PgDn, `^C ^D ^Z ^R ^L ^B ^A ^E ^U ^W`, ký tự khó gõ, dán. Xem [thanh-phim.md](docs/feature/thanh-phim.md).
+- **Thanh phím**: Esc, Tab, Ctrl/Alt/Shift dính, mũi tên giữ để lặp, Home/End/PgUp/PgDn, `^C ^D ^Z ^R ^L ^B ^A ^E ^U ^W`, ký tự khó gõ, dán; tuỳ chỉnh ẩn/hiện từng phím hoặc ẩn cả thanh, kèm phản hồi rung (haptic). Xem [thanh-phim.md](docs/feature/thanh-phim.md).
 - **Bàn phím ảo**: gõ tiếng Việt, xoá, Enter từ IME. Xem [nhap-ban-phim-ao.md](docs/feature/nhap-ban-phim-ao.md).
-- **Cử chỉ**: chạm terminal để bật/tắt bàn phím (thanh phím đi cùng bàn phím), nhấn giữ để sao chép/dán, hai ngón tay để phóng to/thu nhỏ chữ. Xem [cu-chi-terminal.md](docs/feature/cu-chi-terminal.md).
+- **Cử chỉ**: chạm terminal để bật/tắt bàn phím (thanh phím đi cùng bàn phím), vuốt dọc xem lại nội dung cũ, nhấn giữ để chọn chữ kèm 2 đầu kéo và sao chép/dán, hai ngón tay để phóng to/thu nhỏ chữ (6–24 pt). Xem [cu-chi-terminal.md](docs/feature/cu-chi-terminal.md).
 - **Khoá app**: tự đăng nhập bằng mật khẩu đã nhớ rồi mở khoá bằng Face ID (máy không có thì mã PIN 4 số, sai 10 lần tự đăng xuất); rời app dưới 10 phút không bị hỏi lại. Xem [khoa-app.md](docs/feature/khoa-app.md).
 - **Cài đặt**: nhớ mật khẩu trong Keychain/Keystore, cỡ chữ, lệnh tự chạy (mặc định `tmux new -A -s mobile` để giữ phiên); "Nhớ mật khẩu" mặc định tắt. Xem [cai-dat.md](docs/feature/cai-dat.md).
 
@@ -18,7 +18,7 @@ Flutter 3.50.1, `xterm` 4, `flutter_secure_storage`, `shared_preferences`, `loca
 ## Cấu trúc
 
 ```text
-lib/              toàn bộ code Dart (11 file, xem docs/architecture.md)
+lib/              toàn bộ code Dart (12 file, xem docs/architecture.md)
 assets/fonts/     font terminal JetBrains Mono Nerd Font Mono (OFL)
 scripts/          pull-build.sh: tải artifact theo commit; install-build.sh: cài lên máy qua USB
 ios/, android/    project native (Flutter sinh)

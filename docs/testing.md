@@ -19,8 +19,10 @@ Chưa có thư mục `test/`. Chỗ nên thêm unit test đầu tiên (`flutter 
 | Máy không có Face ID/vân tay, đăng nhập lần đầu | Bắt tạo mã PIN 4 số (nhập 2 lần) | [khoa-app.md](feature/khoa-app.md) |
 | Nhập sai PIN 10 lần | Báo còn N lần; lần 10 về màn đăng nhập "Nhập sai mã PIN quá 10 lần, đã đăng xuất." | [khoa-app.md](feature/khoa-app.md) |
 | Chạm terminal khi bàn phím mở / đóng | Đóng / mở bàn phím; thanh phím ẩn/hiện theo | [cu-chi-terminal.md](feature/cu-chi-terminal.md) |
-| Nhấn giữ lên chữ, kéo, nhả → Sao chép; nhấn giữ chỗ trống → Dán | Clipboard có chữ đã chọn, "Đã sao chép"; dán đúng nội dung | [cu-chi-terminal.md](feature/cu-chi-terminal.md) |
-| Hai ngón tay chụm/mở, tắt app mở lại | Cỡ chữ đổi theo, nhãn "N pt"; cỡ chữ được giữ | [cu-chi-terminal.md](feature/cu-chi-terminal.md) |
+| Nhấn giữ lên chữ hoặc dấu, nhả ra kéo 2 đầu giọt nước → Sao chép; nhấn giữ chỗ trống → Dán | Hai đầu kéo bám đúng vùng chọn, tự cuộn sát mép; clipboard có chữ đã chọn, "Đã sao chép" | [cu-chi-terminal.md](feature/cu-chi-terminal.md) |
+| Vuốt dọc xem dòng cũ (shell thường và trong tmux có `set -g mouse on`) | Cuộn mượt lên dòng cũ (shell thường hiện nút `↓` về cuối, tmux vào copy-mode cuộn đúng pane) | [cu-chi-terminal.md](feature/cu-chi-terminal.md) |
+| Hai ngón tay chụm/mở xuống 6 pt, tắt app mở lại | Cỡ chữ giảm được tới 6 pt, nhãn "6 pt"; cỡ chữ được giữ | [cu-chi-terminal.md](feature/cu-chi-terminal.md) |
+| Cài đặt tắt thanh phím / ẩn bớt phím / bấm phím custom | Thanh phím ẩn hoặc chỉ hiện phím đã chọn; mỗi phím rung haptic khi bấm | [thanh-phim.md](feature/thanh-phim.md) |
 | Chữ tiếng Việt có dấu (`[Mất kết nối]`), thanh trạng thái tmux có icon | Dấu nằm đúng trên chữ, icon hiện đúng (không còn ô `?`) | [cai-dat.md](feature/cai-dat.md) |
 | Sai mật khẩu | "Sai username hoặc mật khẩu." | [ket-noi-ttyd.md](feature/ket-noi-ttyd.md) |
 | Kết nối > 5 s, tắt mạng vài giây rồi bật / đưa app xuống nền rồi mở lại | `[Mất kết nối]`, tự nối lại | [ket-noi-ttyd.md](feature/ket-noi-ttyd.md) |
