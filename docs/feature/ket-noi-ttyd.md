@@ -13,13 +13,15 @@ Mở terminal ttyd (sau ttyd-auth) trong app native, tự đăng nhập lại kh
 - Tiêu đề AppBar = title ttyd gửi về, chưa có thì hiện host.
 - Tự nối lại khi app quay về foreground hoặc khi rớt sau phiên dài hơn 5 s. Rời app từ 10 phút trở lên thì khoá trước ([khoa-app.md](khoa-app.md)), kết nối vẫn nối lại phía sau.
 - Menu ⋮ → "Đăng xuất, quên mật khẩu".
+- In output lớn (`cat` file dài) không treo app: output được ghi dần theo frame, tồn đọng nhiều thì tạm dừng server.
 - Chưa có: nhiều host/nhiều tab, giữ shell khi rớt (phải dùng tmux), chứng chỉ tự ký.
 
 ## Code map
 
 - `lib/ttyd_client.dart` — `login` (POST `/login` + GET `/` lấy khóa tab), `TtydConnection` (WebSocket, giải mã khung), `AuthException`, `normalizeHost`.
 - `lib/main.dart` — `TtydKeysApp` (chọn màn đầu), `_LoginScreenState._submit`, `showLogin` (ẩn bàn phím, thay route).
-- `lib/terminal_screen.dart` — `_TerminalScreenState`: `_connect`, `_reconnect`, `_freshSession`, `_open`, `didChangeAppLifecycleState`, `_logout`, AppBar trạng thái.
+- `lib/output_throttle.dart` — `OutputThrottle`: hàng đợi output, ghi vào `Terminal` theo ngân sách mỗi frame, gọi PAUSE/RESUME.
+- `lib/terminal_screen.dart` — `_TerminalScreenState`: `_output`, `_connect`, `_reconnect`, `_freshSession`, `_open`, `didChangeAppLifecycleState`, `_logout`, AppBar trạng thái.
 
 ## Luồng xử lý
 
@@ -32,9 +34,10 @@ Mở terminal ttyd (sau ttyd-auth) trong app native, tự đăng nhập lại kh
    - Không có session → `_freshSession` (đăng nhập lại bằng mật khẩu đã nhớ); không nhớ → về màn đăng nhập "Phiên đã hết hạn, đăng nhập lại."
    - Mở được → trạng thái xanh, gửi lệnh tự chạy (nếu có), mở bàn phím (trừ khi màn khoá đang phủ).
    - `AuthException.wrongCredentials` → `_logout` (quên mật khẩu, xoá PIN), về màn đăng nhập. Lỗi khác → banner lỗi + nút "Thử lại".
-5. Socket đóng (`conn.done`) → in `[Mất kết nối]` vào terminal, trạng thái đỏ; nếu app đang foreground và kết nối đã sống > 5 s → `_connect` lại.
-6. Bấm Kết nối lại (nút lớn, nút AppBar, mục menu, "Thử lại" ở banner) → `_reconnect`: bỏ qua nếu đang nối, đang khoá hoặc đang đăng xuất; gán `_conn = null`, đóng socket cũ (`TtydConnection.close` huỷ listener trước nên output còn tồn của socket cũ không ghi vào terminal; handler `conn.done` của socket cũ bỏ qua vì `_conn != conn`, không in `[Mất kết nối]`), gọi `_connect`.
-7. App về foreground (`AppLifecycleState.resumed`) khi đang đỏ → `_connect`; ở nền ≥ 10 phút thì `_lockNow` trước ([khoa-app.md](khoa-app.md)).
+5. Output (`onText`) → `OutputThrottle.add` xếp hàng; mỗi frame `_drain` ghi lát ≤ 8192 ký tự vào `Terminal` tới khi hết 6 ms rồi để frame vẽ. Tồn > 256K ký tự → `TtydConnection.pause`; còn < 64K → `resume`. Mở kết nối mới → `resetFlow`.
+6. Socket đóng (`conn.done`) → xếp `[Mất kết nối]` vào cùng hàng đợi output, trạng thái đỏ; nếu app đang foreground và kết nối đã sống > 5 s → `_connect` lại.
+7. Bấm Kết nối lại (nút lớn, nút AppBar, mục menu, "Thử lại" ở banner) → `_reconnect`: bỏ qua nếu đang nối, đang khoá hoặc đang đăng xuất; gán `_conn = null`, đóng socket cũ (`TtydConnection.close` huỷ listener trước nên output còn tồn của socket cũ không ghi vào terminal; handler `conn.done` của socket cũ bỏ qua vì `_conn != conn`, không in `[Mất kết nối]`), gọi `_connect`.
+8. App về foreground (`AppLifecycleState.resumed`) khi đang đỏ → `_connect`; ở nền ≥ 10 phút thì `_lockNow` trước ([khoa-app.md](khoa-app.md)).
 
 ```mermaid
 sequenceDiagram
@@ -65,6 +68,8 @@ sequenceDiagram
 - Chỉ nối lại tự động khi kết nối trước sống > 5 s: tránh vòng lặp nối/đóng liên tục khi server từ chối ngay.
 - Lệnh tự chạy gửi sau khung output đầu tiên hoặc tối đa 3 s, và chỉ gửi nếu kết nối đó vẫn là kết nối hiện tại.
 - Phát hiện cookie hết hạn bằng chuỗi `401` trong message của `WebSocketException` (phụ thuộc thông báo lỗi của `dart:io`).
+- Không ghi output thẳng vào `_terminal.write`, luôn qua `_output.add` để giữ thứ tự và không chặn luồng UI. xterm đã chỉ vẽ dòng trong viewport; phần chậm là parse, nên giới hạn theo thời gian parse mỗi frame.
+- Ở nền không có frame nên hàng đợi không chạy; vượt ngưỡng thì server đã bị PAUSE, về foreground thì chạy tiếp.
 - Lỗi xác thực hiển thị qua `AuthException.message` (tiếng Việt); lỗi mạng/WS có tiền tố tiếng Việt kèm chi tiết gốc của `dart:io`.
 
 ## Còn để lại

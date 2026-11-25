@@ -14,6 +14,7 @@ import 'key_handler.dart';
 import 'lock_screen.dart';
 import 'main.dart';
 import 'modifiers.dart';
+import 'output_throttle.dart';
 import 'selection_handles.dart';
 import 'settings.dart';
 import 'terminal_gestures.dart';
@@ -44,6 +45,11 @@ class _TerminalScreenState extends State<TerminalScreen>
     maxLines: 10000,
     inputHandler: const FixedKeyHandler(),
     mouseHandler: const FixedMouseHandler(),
+  );
+  late final _output = OutputThrottle(
+    write: _terminal.write,
+    onPause: () => _conn?.pause(),
+    onResume: () => _conn?.resume(),
   );
   final _terminalViewKey = GlobalKey<TerminalViewState>();
   final _inputKey = GlobalKey<TerminalInputState>();
@@ -166,6 +172,7 @@ class _TerminalScreenState extends State<TerminalScreen>
     _altFling.dispose();
     _contextMenuController.remove();
     _conn?.close();
+    _output.dispose();
     _scrollController.dispose();
     _controller.dispose();
     _focus.dispose();
@@ -292,6 +299,7 @@ class _TerminalScreenState extends State<TerminalScreen>
       final opened = conn;
       _conn?.close();
       _conn = opened;
+      _output.resetFlow();
       setState(() => _status = _Status.connected);
       final startup = _settings.startupCommand.trim();
       if (startup.isNotEmpty) {
@@ -303,7 +311,7 @@ class _TerminalScreenState extends State<TerminalScreen>
       final openedAt = DateTime.now();
       conn.done.then((_) {
         if (!mounted || _conn != conn) return;
-        _terminal.write('\r\n\x1b[33m[Mất kết nối]\x1b[0m\r\n');
+        _output.add('\r\n\x1b[33m[Mất kết nối]\x1b[0m\r\n');
         setState(() => _status = _Status.disconnected);
         final resumed = WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed;
         if (resumed && DateTime.now().difference(openedAt) > const Duration(seconds: 5)) _connect();
@@ -334,7 +342,7 @@ class _TerminalScreenState extends State<TerminalScreen>
       session,
       columns: _terminal.viewWidth,
       rows: _terminal.viewHeight,
-      onText: _terminal.write,
+      onText: _output.add,
       onTitle: (t) {
         if (mounted) setState(() => _title = t);
       },
