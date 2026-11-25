@@ -13,6 +13,7 @@ Mỗi commit thay đổi tính năng, sửa lỗi, build hoặc tài liệu có 
 
 ## 2026-11-25
 
+- `a481564` Sửa: `cat` file lớn bám sát output thật và về cuối ngay khi xong; ttyd 1.7.4 bỏ qua PAUSE nên app dừng đọc socket để chặn server ([ket-noi-ttyd](docs/feature/ket-noi-ttyd.md)).
 - `cf0a377` Sửa: in output lớn (vd `cat` file dài) không còn treo app; output ghi dần theo frame và tạm dừng server khi tồn đọng ([ket-noi-ttyd](docs/feature/ket-noi-ttyd.md)).
 - `e7b1abb` Tài liệu: AGENTS.md thêm quy tắc commit ngay khi xong (không push, mỗi agent tự commit phần mình) và chỉ dùng Gemini 4 Neon khi giao agy viết code; CHANGELOG ghi hash commit cho từng dòng.
 - `d8d89f4` Kết nối: nút lớn "Kết nối lại" khi mất kết nối và mục menu ⋮ "Kết nối lại" ép nối lại; Cài đặt: cỡ chữ nhỏ nhất 1 pt, công tắc chỉ ẩn hàng phím thứ hai; Thanh phím: trượt cùng bàn phím ảo khi đóng/mở, hết giật ([thanh-phim](docs/feature/thanh-phim.md)).
