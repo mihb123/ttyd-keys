@@ -151,9 +151,9 @@ class TtydConnection {
 
   void resize(int columns, int rows) => _send(0x31, utf8.encode(jsonEncode({'columns': columns, 'rows': rows})));
 
-  void pause() => _send(0x32, const []);
+  void pause() => _sub?.pause();
 
-  void resume() => _send(0x33, const []);
+  void resume() => _sub?.resume();
 
   Future<void> close() async {
     await _sub?.cancel();

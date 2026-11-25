@@ -36,12 +36,12 @@ Byte đầu là loại lệnh (ký tự ASCII), phần sau là payload.
 | Client → server (khung đầu, không có byte loại) | — | JSON `{"AuthToken":"","columns":c,"rows":r}` | `TtydConnection.open` |
 | Client → server | `0` (0x30) | bytes UTF-8 của input | `input` |
 | Client → server | `1` (0x31) | JSON `{"columns":c,"rows":r}` | `resize` |
-| Client → server | `2` (0x32) | rỗng; ttyd ngừng đọc pty (PAUSE) | `pause` |
-| Client → server | `3` (0x33) | rỗng; ttyd đọc pty lại (RESUME) | `resume` |
 | Server → client | `0` (0x30) | output terminal (UTF-8, có thể cắt giữa ký tự) | `_onMessage` → decoder chunked |
 | Server → client | `1` (0x31) | tiêu đề cửa sổ | `onTitle` |
 | Server → client | khác | bỏ qua | — |
 
 - Output giải mã bằng `Utf8Decoder(allowMalformed: true).startChunkedConversion` để ký tự nhiều byte bị cắt giữa hai khung vẫn đúng.
-- `input`/`resize`/`pause`/`resume` không gửi khi socket không ở trạng thái `open`.
+- `input`/`resize` không gửi khi socket không ở trạng thái `open`.
+- Không dùng khung PAUSE `2`/RESUME `3`: ttyd 1.7.4 gọi `pty_resume` sau mỗi khung output (`LWS_CALLBACK_SERVER_WRITEABLE` trong `protocol.c`) nên PAUSE vô tác dụng. Chặn luồng bằng `TtydConnection.pause`/`resume` = dừng/đọc tiếp socket (`StreamSubscription.pause`), TCP đầy thì ttyd ngừng đọc pty.
+- Socket dừng đọc quá `pingInterval` 10 s thì `dart:io` đóng kết nối (1001) vì không thấy pong.
 - Mỗi WebSocket mới là một shell mới phía ttyd; giữ phiên bằng `tmux` (xem [feature/cai-dat.md](feature/cai-dat.md)).

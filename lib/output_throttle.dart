@@ -9,7 +9,7 @@ class OutputThrottle {
   final void Function() onPause;
   final void Function() onResume;
 
-  static const _frameBudget = Duration(milliseconds: 6);
+  static const _frameBudget = Duration(milliseconds: 10);
   static const _sliceChars = 8192;
   static const _highWater = 256 * 1024;
   static const _lowWater = 64 * 1024;
