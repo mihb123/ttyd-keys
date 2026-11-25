@@ -13,6 +13,7 @@ Mỗi commit thay đổi tính năng, sửa lỗi, build hoặc tài liệu có 
 
 ## 2026-11-25
 
+- `cf0a377` Sửa: in output lớn (vd `cat` file dài) không còn treo app; output ghi dần theo frame và tạm dừng server khi tồn đọng ([ket-noi-ttyd](docs/feature/ket-noi-ttyd.md)).
 - `e7b1abb` Tài liệu: AGENTS.md thêm quy tắc commit ngay khi xong (không push, mỗi agent tự commit phần mình) và chỉ dùng Gemini 4 Neon khi giao agy viết code; CHANGELOG ghi hash commit cho từng dòng.
 - `d8d89f4` Kết nối: nút lớn "Kết nối lại" khi mất kết nối và mục menu ⋮ "Kết nối lại" ép nối lại; Cài đặt: cỡ chữ nhỏ nhất 1 pt, công tắc chỉ ẩn hàng phím thứ hai; Thanh phím: trượt cùng bàn phím ảo khi đóng/mở, hết giật ([thanh-phim](docs/feature/thanh-phim.md)).
 - `08e9e69` Thanh phím: cho phép ẩn cả thanh hoặc chọn ẩn/hiện từng phím trong Cài đặt, kèm phản hồi rung haptic khi bấm ([thanh-phim](docs/feature/thanh-phim.md)); Cài đặt: giảm cỡ chữ nhỏ nhất xuống 6 pt ([cai-dat](docs/feature/cai-dat.md)); Cử chỉ: sửa vuốt dọc xem nội dung cũ (buffer chính + alternate buffer/tmux) và bổ sung 2 đầu kéo chọn chữ kiểu mobile để sao chép ([cu-chi-terminal](docs/feature/cu-chi-terminal.md)).
