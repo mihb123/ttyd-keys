@@ -1,18 +1,19 @@
 # Changelog
 
-Mỗi commit thay đổi tính năng, sửa lỗi, build hoặc tài liệu có một dòng dưới ngày commit (`## YYYY-MM-DD`, mới nhất ở trên):
+Mỗi commit thay đổi tính năng, sửa lỗi, build hoặc tài liệu thêm một dòng dưới ngày commit (`## YYYY-MM-DD`, mới nhất ở trên), **trong chính commit đó**:
 
 ```markdown
-- `abc1234` Thanh phím: thêm phím F1–F12 ([thanh-phim](docs/feature/thanh-phim.md)).
-- `def5678` Sửa: tự nối lại sau khi đăng xuất.
+- Thanh phím: thêm phím F1–F12 ([thanh-phim](docs/feature/thanh-phim.md)).
+- Sửa: tự nối lại sau khi đăng xuất.
 ```
 
-- Đầu dòng là hash ngắn của commit đó (`git rev-parse --short HEAD` ngay sau khi commit), rồi nhóm (`Kết nối`, `Thanh phím`, `Bàn phím ảo`, `Cài đặt`, `Build`, `Tài liệu`, tên tính năng mới) hoặc `Sửa:`. Nói người dùng thấy gì thay đổi, không kể quá trình; link feature tuỳ chọn.
-- Một commit làm nhiều việc thì nhiều dòng cùng hash.
-- Thêm dòng sau khi commit rồi commit riêng: `git add -p CHANGELOG.md && git commit -m "changelog <hash>"`. Commit chỉ sửa `CHANGELOG.md` không cần dòng.
+- Mở đầu bằng nhóm (`Kết nối`, `Thanh phím`, `Bàn phím ảo`, `Cài đặt`, `Build`, `Tài liệu`, tên tính năng mới) hoặc `Sửa:`. Nói người dùng thấy gì thay đổi, không kể quá trình; link feature tuỳ chọn.
+- Không ghi hash (commit không chứa được hash của chính nó); cần hash thì `git blame CHANGELOG.md`. Dòng cũ có hash giữ nguyên.
+- Không tạo commit riêng cho changelog: `git add CHANGELOG.md <file đã sửa> && git commit`.
 
 ## 2026-11-25
 
+- Tài liệu: dòng CHANGELOG commit chung với thay đổi, không ghi hash, không tách commit riêng.
 - `a481564` Sửa: `cat` file lớn bám sát output thật và về cuối ngay khi xong; ttyd 1.7.4 bỏ qua PAUSE nên app dừng đọc socket để chặn server ([ket-noi-ttyd](docs/feature/ket-noi-ttyd.md)).
 - `cf0a377` Sửa: in output lớn (vd `cat` file dài) không còn treo app; output ghi dần theo frame và tạm dừng server khi tồn đọng ([ket-noi-ttyd](docs/feature/ket-noi-ttyd.md)).
 - `e7b1abb` Tài liệu: AGENTS.md thêm quy tắc commit ngay khi xong (không push, mỗi agent tự commit phần mình) và chỉ dùng Gemini 4 Neon khi giao agy viết code; CHANGELOG ghi hash commit cho từng dòng.

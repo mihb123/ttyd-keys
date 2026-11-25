@@ -50,10 +50,10 @@ Làm xong một tính năng, sửa lỗi hoặc cải thiện thì cập nhật 
 
 ## Commit
 
-- Làm xong một việc (code + docs, `make analyze` / `make docs-check` sạch) thì commit luôn, không push: người dùng tự push (push `main` kích hoạt build iOS).
+- Làm xong một việc (code + docs + dòng CHANGELOG, `make analyze` / `make docs-check` sạch) thì commit luôn, không push: người dùng tự push (push `main` kích hoạt build iOS).
 - Nhiều agent cùng làm: phần của ai người đó tự commit. Chỉ `git add <file>` những file mình sửa (file chung thì `git add -p`); không `git add -A` / `git add .` / `git commit -a`; không commit, stash, reset, checkout thay đổi của agent khác.
 - Message một dòng, nói thay đổi gì, vd `Thanh phím: thêm phím F1–F12`.
-- Commit xong thì thêm dòng kèm hash vào [CHANGELOG.md](CHANGELOG.md) theo định dạng đầu file đó.
+- Thêm dòng vào [CHANGELOG.md](CHANGELOG.md) theo định dạng đầu file đó và commit chung với thay đổi, không tách commit riêng.
 
 ## Làm cùng agy
 
