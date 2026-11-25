@@ -61,4 +61,4 @@ App Flutter (iOS + Android) làm terminal native cho ttyd sau ttyd-auth, kèm th
 - Mỗi điều nằm ở một chỗ, chỗ khác link sang (giao thức ở `api_specifications.md`, key lưu trữ ở `feature/cai-dat.md`).
 - `feature/*.md` theo đúng khung [templates/feature.md](templates/feature.md): Mục tiêu → Phạm vi hiện tại → Code map → Luồng xử lý → Dữ liệu & giao thức → Quy tắc & lưu ý → Còn để lại; mục không áp dụng ghi `Không có.` (`make docs-check` kiểm).
 - Link tương đối; mermaid quote nhãn có ký tự đặc biệt; chạy `make docs-check` trước khi xong.
-- Quy tắc cập nhật docs + CHANGELOG khi sửa code: [AGENTS.md](../AGENTS.md#cập-nhật-tài-liệu-sau-mỗi-thay-đổi).
+- Quy tắc cập nhật docs + commit khi sửa code: [AGENTS.md](../AGENTS.md#cập-nhật-tài-liệu-sau-mỗi-thay-đổi).

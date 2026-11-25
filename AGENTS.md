@@ -24,7 +24,6 @@
 - Import widget từ `package:material_ui/material_ui.dart` như code hiện có.
 - Giữ ranh giới module trong [docs/architecture.md](docs/architecture.md#2-module) (vd `ttyd_client.dart` không import Flutter).
 - Thông báo cho người dùng bằng tiếng Việt.
-- Không commit/push khi chưa được yêu cầu; push `main` sẽ kích hoạt build iOS trên GitHub Actions.
 
 ## Cập nhật tài liệu sau mỗi thay đổi
 
@@ -49,16 +48,15 @@ Làm xong một tính năng, sửa lỗi hoặc cải thiện thì cập nhật 
 - Con số, tên hàm, key phải khớp code hiện tại; ghi kèm file/hàm.
 - Chạy `make docs-check` trước khi báo xong.
 
-## CHANGELOG
+## Commit
 
-Mỗi thay đổi thêm 1 dòng vào [CHANGELOG.md](CHANGELOG.md), dưới mục ngày hôm nay (`## YYYY-MM-DD`, mới nhất ở trên):
+- Làm xong một việc (code + docs, `make analyze` / `make docs-check` sạch) thì commit luôn, không push: người dùng tự push (push `main` kích hoạt build iOS).
+- Nhiều agent cùng làm: phần của ai người đó tự commit. Chỉ `git add <file>` những file mình sửa (file chung thì `git add -p`); không `git add -A` / `git add .` / `git commit -a`; không commit, stash, reset, checkout thay đổi của agent khác.
+- Message một dòng, nói thay đổi gì, vd `Thanh phím: thêm phím F1–F12`.
+- Commit xong thì thêm dòng kèm hash vào [CHANGELOG.md](CHANGELOG.md) theo định dạng đầu file đó.
 
-```markdown
-## 2026-11-25
+## Làm cùng agy
 
-- Thanh phím: thêm phím F1–F12 ([thanh-phim](docs/feature/thanh-phim.md)).
-- Sửa: tự nối lại sau khi đăng xuất.
-```
-
-- Một dòng, bắt đầu bằng nhóm (`Kết nối`, `Thanh phím`, `Bàn phím ảo`, `Cài đặt`, `Build`, `Tài liệu`, hoặc tên tính năng mới) hoặc `Sửa:`; nói người dùng thấy gì thay đổi, không kể quá trình. Link tới feature là tuỳ chọn.
-- Một thay đổi chưa commit chỉ có một dòng; sửa tiếp thì cập nhật dòng đó, không thêm dòng mới.
+- Giao agy viết/sửa code: chỉ dùng Gemini 4 Neon (`AGY_TIER=high`/`xhigh`, `gemini-4-neon-*`). Không dùng Hydrogen để viết code.
+- Hydrogen (`gemini-4-hydrogen-*`, tier `low`/`medium`) chỉ dùng cho dịch, tóm tắt, search nhanh trên web.
+- Code agy viết: agent chủ review rồi tự commit.
