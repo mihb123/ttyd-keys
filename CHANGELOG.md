@@ -13,6 +13,7 @@ Mỗi commit thay đổi tính năng, sửa lỗi, build hoặc tài liệu thê
 
 ## 2026-11-27
 
+- Nhiều server: mỗi server đăng nhập một lần, vuốt từ mép trái (hoặc nút ☰) mở danh sách server để chuyển qua lại, server đã mở giữ kết nối; thêm/sửa/ngắt/xoá server, lệnh tự chạy riêng từng server, bỏ ô "Nhớ mật khẩu" (luôn lưu) ([nhieu-server](docs/feature/nhieu-server.md)).
 - Build: đổi tên app thành **TapShell** và thay icon mặc định của Flutter bằng logo mới (terminal `>_` + thanh phím), cả iOS và Android adaptive.
 - Tài liệu: agent làm xong việc thì tự push `main` và theo dõi CI tới khi xanh ([AGENTS.md](AGENTS.md#commit)).
 

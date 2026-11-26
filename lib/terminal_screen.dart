@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:io';
 import 'dart:math' as math;
 
 import 'package:flutter/gestures.dart';
@@ -11,18 +10,16 @@ import 'package:xterm/xterm.dart';
 import 'app_lock.dart';
 import 'fixed_terminal.dart';
 import 'key_bar.dart';
-import 'key_handler.dart';
 import 'lock_screen.dart';
 import 'main.dart';
 import 'modifiers.dart';
-import 'output_throttle.dart';
 import 'selection_handles.dart';
+import 'server_drawer.dart';
+import 'server_session.dart';
 import 'settings.dart';
 import 'terminal_gestures.dart';
 import 'terminal_input.dart';
 import 'ttyd_client.dart';
-
-enum _Status { connecting, connected, disconnected }
 
 /// Font nhúng trong app (assets/fonts): đủ dấu tiếng Việt dựng sẵn + icon Nerd Font cho prompt/tmux.
 const terminalFontFamily = 'JetBrainsMonoNF';
@@ -42,32 +39,21 @@ class TerminalScreen extends StatefulWidget {
 
 class _TerminalScreenState extends State<TerminalScreen>
     with WidgetsBindingObserver, SingleTickerProviderStateMixin {
-  final _terminal = FixedTerminal(
-    maxLines: 10000,
-    inputHandler: const FixedKeyHandler(),
-    mouseHandler: const FixedMouseHandler(),
-  );
-  late final _output = OutputThrottle(
-    write: _terminal.write,
-    onPause: () => _conn?.pause(),
-    onResume: () => _conn?.resume(),
-  );
-  final _terminalViewKey = GlobalKey<TerminalViewState>();
+  final _scaffoldKey = GlobalKey<ScaffoldState>();
+  final Map<String, ServerSession> _sessions = {};
+  final Map<String, GlobalKey<TerminalViewState>> _viewKeys = {};
+  final Map<String, ScrollController> _scrollControllers = {};
+  late String _activeId;
+  FixedTerminal? _listenedTerminal;
+  ScrollController? _listenedScrollController;
+
   final _inputKey = GlobalKey<TerminalInputState>();
   final _controller = TerminalController();
-  final _scrollController = ScrollController();
   final _focus = FocusNode();
   final _mods = Modifiers();
   final _contextMenuController = ContextMenuController();
   final Set<int> _activePointers = {};
   late final AnimationController _altFling = AnimationController.unbounded(vsync: this)..addListener(_onAltFlingTick);
-
-  late TtydSession? _session = widget.initialSession;
-  TtydConnection? _conn;
-  _Status _status = _Status.connecting;
-  String? _error;
-  String _title = '';
-  bool _connecting = false;
 
   final _lock = AppLock();
   late bool _locked = widget.lockOnStart;
@@ -75,6 +61,7 @@ class _TerminalScreenState extends State<TerminalScreen>
   int _lockRound = 0;
   DateTime? _backgroundAt;
   bool _loggingOut = false;
+  bool _passwordPromptOpen = false;
 
   /// Màn che đen khi app không ở foreground (không lộ terminal trong trình chuyển app),
   /// và lúc đang kiểm có cần tạo PIN sau khi đăng nhập bằng mật khẩu.
@@ -104,6 +91,66 @@ class _TerminalScreenState extends State<TerminalScreen>
 
   bool get _covered => _locked || _pinSetup;
 
+  ServerSession get _activeSession => _sessions[_activeId]!;
+
+  FixedTerminal get _terminal => _activeSession.terminal;
+
+  GlobalKey<TerminalViewState> get _terminalViewKey => _viewKeyFor(_activeId);
+
+  ScrollController get _scrollController => _scrollControllerFor(_activeId);
+
+  ServerSession _sessionFor(ServerProfile profile, {TtydSession? initialSession}) {
+    final existing = _sessions[profile.id];
+    if (existing != null) return existing;
+    final created = ServerSession(
+      profile: profile,
+      settings: _settings,
+      canConnect: () => mounted && !_covered && !_loggingOut,
+      isActive: () => mounted && _activeId == profile.id,
+      onNeedPassword: _onSessionNeedPassword,
+      onConnected: _onSessionConnected,
+      initialSession: initialSession,
+    )..addListener(_onSessionChanged);
+    _sessions[profile.id] = created;
+    return created;
+  }
+
+  GlobalKey<TerminalViewState> _viewKeyFor(String id) =>
+      _viewKeys.putIfAbsent(id, () => GlobalKey<TerminalViewState>());
+
+  ScrollController _scrollControllerFor(String id) =>
+      _scrollControllers.putIfAbsent(id, () => ScrollController());
+
+  ServerStatus _statusOf(ServerProfile server) => _sessions[server.id]?.status ?? ServerStatus.idle;
+
+  void _attachActiveListeners(ServerSession session) {
+    _listenedTerminal?.removeListener(_onTerminalStateChanged);
+    _listenedTerminal = session.terminal;
+    session.terminal.addListener(_onTerminalStateChanged);
+    _isAltBuffer = session.terminal.isUsingAltBuffer;
+
+    _listenedScrollController?.removeListener(_onScrollPositionChanged);
+    final scrollController = _scrollControllerFor(session.profile.id);
+    _listenedScrollController = scrollController;
+    scrollController.addListener(_onScrollPositionChanged);
+  }
+
+  void _onSessionChanged() {
+    if (mounted) setState(() {});
+  }
+
+  void _onSessionConnected(ServerSession session) {
+    if (mounted && !_covered && session.profile.id == _activeId) {
+      _inputKey.currentState?.show();
+    }
+  }
+
+  void _onSessionNeedPassword(ServerSession session, String message) {
+    if (!mounted || _covered || _loggingOut || _passwordPromptOpen) return;
+    if (session.profile.id != _activeId) return;
+    _openServerForm(server: session.profile, error: message);
+  }
+
   double get _lineHeight {
     final state = _terminalViewKey.currentState;
     if (state == null || !state.mounted) return 16;
@@ -115,12 +162,13 @@ class _TerminalScreenState extends State<TerminalScreen>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _terminal.onOutput = _send;
-    _terminal.onResize = (w, h, _, _) => _conn?.resize(w, h);
-    _terminal.addListener(_onTerminalStateChanged);
-    _scrollController.addListener(_onScrollPositionChanged);
+    final active = _settings.activeServer!;
+    _activeId = active.id;
+    _settings.activeServerId = active.id;
+    final session = _sessionFor(active, initialSession: widget.initialSession);
+    _attachActiveListeners(session);
     _controller.addListener(_onSelectionChanged);
-    WidgetsBinding.instance.addPostFrameCallback((_) => _connect());
+    WidgetsBinding.instance.addPostFrameCallback((_) => _activeSession.connect());
     if (!widget.lockOnStart) _checkPinSetup();
   }
 
@@ -140,6 +188,7 @@ class _TerminalScreenState extends State<TerminalScreen>
     FocusManager.instance.primaryFocus?.unfocus();
     // Menu Sao chép/Dán nằm trên Overlay riêng, phải gỡ để không nổi trên màn khoá.
     _dismissSelectionAndMenu();
+    _scaffoldKey.currentState?.closeDrawer();
     // Đóng sheet Cài đặt/menu đang mở phía trên, nếu không chúng nằm đè lên màn khoá.
     final route = ModalRoute.of(context);
     if (route != null) Navigator.of(context).popUntil((r) => r == route);
@@ -154,27 +203,41 @@ class _TerminalScreenState extends State<TerminalScreen>
       _locked = false;
       _pinSetup = false;
     });
-    if (_conn?.isOpen ?? false) {
+    final session = _activeSession;
+    if (session.conn?.isOpen ?? false) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted && !_covered) _inputKey.currentState?.show();
       });
+    } else if (session.needsPassword) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && !_covered && session.profile.id == _activeId) {
+          _openServerForm(
+            server: session.profile,
+            error: session.error ?? 'Nhập mật khẩu cho ${session.profile.label}.',
+          );
+        }
+      });
     } else {
-      _connect();
+      session.connect();
     }
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    _terminal.removeListener(_onTerminalStateChanged);
-    _scrollController.removeListener(_onScrollPositionChanged);
+    _listenedTerminal?.removeListener(_onTerminalStateChanged);
+    _listenedScrollController?.removeListener(_onScrollPositionChanged);
     _controller.removeListener(_onSelectionChanged);
     _longPressTimer?.cancel();
     _altFling.dispose();
     _contextMenuController.remove();
-    _conn?.close();
-    _output.dispose();
-    _scrollController.dispose();
+    for (final s in _sessions.values) {
+      s.removeListener(_onSessionChanged);
+      s.dispose();
+    }
+    for (final c in _scrollControllers.values) {
+      c.dispose();
+    }
     _controller.dispose();
     _focus.dispose();
     _mods.dispose();
@@ -248,112 +311,169 @@ class _TerminalScreenState extends State<TerminalScreen>
           if (away.isNegative || away >= AppLock.lockAfter) _lockNow();
         }
         if (_curtain) setState(() => _curtain = false);
-        if (_status == _Status.disconnected) _connect();
+        if (!_covered && _activeSession.status == ServerStatus.disconnected && !_activeSession.needsPassword) {
+          _activeSession.connect();
+        }
       default:
     }
   }
 
-  Future<TtydSession?> _freshSession() async {
-    if (!_settings.rememberPassword || _settings.username.isEmpty || _settings.password.isEmpty) return null;
-    return login(_settings.host, _settings.username, _settings.password);
+  void _selectServer(ServerProfile profile) {
+    if (profile.id == _activeId) return;
+    _activateServer(profile);
   }
 
-  Future<void> _reconnect() async {
-    if (!mounted || _covered || _loggingOut || _connecting) return;
-    final old = _conn;
-    _conn = null;
-    if (old != null) unawaited(old.close().catchError((Object _) {}));
-    await _connect();
-  }
-
-  /// Đang khoá thì không mở WS (shell + lệnh tự chạy chỉ chạy sau khi xác thực bước 2);
-  /// `_onUnlocked` gọi lại.
-  Future<void> _connect() async {
-    if (!mounted || _covered || _loggingOut || _connecting || (_conn?.isOpen ?? false)) return;
-    _connecting = true;
-    setState(() {
-      _status = _Status.connecting;
-      _error = null;
+  void _activateServer(ServerProfile profile, {bool connectAfterFrame = true}) {
+    _dismissSelectionAndMenu();
+    _altFling.stop();
+    _altScrollCarry = 0;
+    _altScrollLocalPos = null;
+    _isScrolledUp = false;
+    final next = _sessionFor(profile);
+    _activeId = profile.id;
+    _settings.activeServerId = profile.id;
+    unawaited(_settings.save());
+    _attachActiveListeners(next);
+    setState(() {});
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || _activeId != profile.id) return;
+      _onScrollPositionChanged();
+      if (_covered || !connectAfterFrame) return;
+      if (next.needsPassword) {
+        _openServerForm(
+          server: next.profile,
+          error: next.error ?? 'Nhập mật khẩu cho ${next.profile.label}.',
+        );
+      } else if (next.status == ServerStatus.idle || next.status == ServerStatus.disconnected) {
+        next.connect();
+      } else if (next.status == ServerStatus.connected) {
+        _inputKey.currentState?.show();
+      }
     });
+  }
+
+  void _reconnect() {
+    final session = _activeSession;
+    if (session.needsPassword) {
+      _openServerForm(
+        server: session.profile,
+        error: session.error ?? 'Nhập mật khẩu cho ${session.profile.label}.',
+      );
+      return;
+    }
+    session.reconnect();
+  }
+
+  void _send(String data) => _activeSession.send(data);
+
+  Future<void> _openServerForm({ServerProfile? server, String? error}) async {
+    if (_passwordPromptOpen || _loggingOut) return;
+    _passwordPromptOpen = true;
+    _dismissSelectionAndMenu();
+    _hideKeyboard();
     try {
-      TtydConnection? conn;
-      if (_session != null) {
-        try {
-          conn = await _open(_session!);
-        } on WebSocketException catch (e) {
-          if (!e.message.contains('401')) rethrow;
-          _session = null;
-        }
-      }
-      if (conn == null) {
-        _session = await _freshSession();
-        if (_session == null) {
-          if (mounted) showLogin(context, _settings, error: 'Phiên đã hết hạn, đăng nhập lại.');
-          return;
-        }
-        conn = await _open(_session!);
-      }
-      if (!mounted || _loggingOut) {
-        conn.close();
-        return;
-      }
-      final opened = conn;
-      _conn?.close();
-      _conn = opened;
-      _output.resetFlow();
-      setState(() => _status = _Status.connected);
-      final startup = _settings.startupCommand.trim();
-      if (startup.isNotEmpty) {
-        opened.firstOutput.timeout(const Duration(seconds: 3), onTimeout: () {}).then((_) {
-          if (_conn == opened) opened.input('$startup\r');
-        });
-      }
-      if (!_covered) _inputKey.currentState?.show();
-      final openedAt = DateTime.now();
-      conn.done.then((_) {
-        if (!mounted || _conn != conn) return;
-        _output.add('\r\n\x1b[33m[Mất kết nối]\x1b[0m\r\n');
-        setState(() => _status = _Status.disconnected);
-        final resumed = WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed;
-        if (resumed && DateTime.now().difference(openedAt) > const Duration(seconds: 5)) _connect();
-      });
-    } on AuthException catch (e) {
-      if (!mounted) return;
-      if (e.wrongCredentials) {
-        await _logout(error: e.message);
-        return;
-      }
-      setState(() {
-        _status = _Status.disconnected;
-        _error = e.message;
-      });
-    } on Object catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _status = _Status.disconnected;
-        _error = 'Không kết nối được: $e';
-      });
+      final result = await Navigator.of(context).push<LoginResult>(
+        MaterialPageRoute(
+          builder: (_) => LoginScreen(
+            settings: _settings,
+            server: server,
+            error: error,
+            isRoot: false,
+          ),
+        ),
+      );
+      if (!mounted || result == null) return;
+      _applyServerFormResult(result, isNew: server == null);
     } finally {
-      _connecting = false;
+      _passwordPromptOpen = false;
     }
   }
 
-  Future<TtydConnection> _open(TtydSession session) {
-    return TtydConnection.open(
-      session,
-      columns: _terminal.viewWidth,
-      rows: _terminal.viewHeight,
-      onText: _output.add,
-      onTitle: (t) {
-        if (mounted) setState(() => _title = t);
-      },
-    );
+  void _applyServerFormResult(LoginResult result, {required bool isNew}) {
+    final profile = result.profile;
+    if (isNew) {
+      _sessionFor(profile, initialSession: result.session);
+      _activateServer(profile);
+      return;
+    }
+    final session = _sessionFor(profile);
+    if (profile.id != _activeId) {
+      _activateServer(profile, connectAfterFrame: false);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && _activeId == profile.id) {
+          session.replaceSession(result.session);
+        }
+      });
+    } else {
+      setState(() {});
+      session.replaceSession(result.session);
+    }
   }
 
-  void _send(String data) {
-    final conn = _conn;
-    if (conn == null || !conn.isOpen) return;
-    conn.input(data);
+  Future<void> _confirmDeleteServer(ServerProfile server) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Xoá server'),
+        content: Text('Xoá server ${server.label}? Mật khẩu đã lưu cũng bị xoá.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(dialogContext).pop(false), child: const Text('Huỷ')),
+          FilledButton(onPressed: () => Navigator.of(dialogContext).pop(true), child: const Text('Xoá')),
+        ],
+      ),
+    );
+    if (confirmed == true && mounted) {
+      await _deleteServer(server);
+    }
+  }
+
+  Future<void> _deleteServer(ServerProfile server) async {
+    final id = server.id;
+    final wasActive = id == _activeId;
+    _dismissSelectionAndMenu();
+    await _settings.removeServer(id);
+    if (!mounted) return;
+
+    final next = _settings.activeServer;
+    if (next == null) {
+      _loggingOut = true;
+      _scaffoldKey.currentState?.closeDrawer();
+      for (final s in _sessions.values) {
+        s.disconnect();
+      }
+      await _lock.clear();
+      if (mounted) showLogin(context, _settings);
+      return;
+    }
+
+    final removedSession = _sessions.remove(id);
+    if (removedSession != null) {
+      removedSession.removeListener(_onSessionChanged);
+      if (_listenedTerminal == removedSession.terminal) {
+        removedSession.terminal.removeListener(_onTerminalStateChanged);
+        _listenedTerminal = null;
+      }
+    }
+    final removedScroll = _scrollControllers.remove(id);
+    if (removedScroll != null) {
+      removedScroll.removeListener(_onScrollPositionChanged);
+      if (_listenedScrollController == removedScroll) {
+        _listenedScrollController = null;
+      }
+    }
+    _viewKeys.remove(id);
+
+    if (wasActive) {
+      _scaffoldKey.currentState?.closeDrawer();
+      _activateServer(next);
+    } else {
+      setState(() {});
+    }
+
+    removedSession?.dispose();
+    if (removedScroll != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => removedScroll.dispose());
+    }
   }
 
   String _withMods(String data) =>
@@ -820,13 +940,14 @@ class _TerminalScreenState extends State<TerminalScreen>
     if (_loggingOut) return;
     _loggingOut = true;
     _dismissSelectionAndMenu();
-    final conn = _conn;
-    _conn = null;
-    await conn?.close();
-    await _settings.forgetPassword();
+    _scaffoldKey.currentState?.closeDrawer();
+    for (final s in _sessions.values) {
+      s.disconnect();
+    }
+    await _settings.forgetAllPasswords();
     await _settings.save();
     await _lock.clear();
-    if (mounted) showLogin(context, _settings, error: error);
+    if (mounted) showLogin(context, _settings, server: _settings.activeServer, error: error);
   }
 
   @override
@@ -857,6 +978,8 @@ class _TerminalScreenState extends State<TerminalScreen>
   }
 
   Widget _terminalScaffold(BuildContext context) {
+    final session = _activeSession;
+    final status = session.status;
     final keyboardInset = MediaQuery.viewInsetsOf(context).bottom;
     final keyboardVisible = keyboardInset > 0;
     final showKeyBar = keyboardVisible && (_inputKey.currentState?.isAttached ?? false);
@@ -870,26 +993,41 @@ class _TerminalScreenState extends State<TerminalScreen>
     _lastKeyboardVisible = keyboardVisible;
 
     return Scaffold(
+      key: _scaffoldKey,
       backgroundColor: Colors.black,
       resizeToAvoidBottomInset: true,
+      drawerEdgeDragWidth: 28,
+      onDrawerChanged: (opened) {
+        if (opened) {
+          _dismissSelectionAndMenu();
+          _hideKeyboard();
+        }
+      },
+      drawer: ServerDrawer(
+        servers: _settings.servers,
+        activeServerId: _activeId,
+        statusOf: _statusOf,
+        onSelect: _selectServer,
+        onEdit: (server) => _openServerForm(server: server),
+        onDisconnect: (server) => _sessions[server.id]?.disconnect(),
+        onDelete: _confirmDeleteServer,
+        onAdd: () => _openServerForm(),
+      ),
       appBar: AppBar(
         toolbarHeight: 40,
-        titleSpacing: 12,
+        titleSpacing: 4,
+        leading: IconButton(
+          tooltip: 'Danh sách server',
+          icon: const Icon(Icons.menu),
+          onPressed: () => _scaffoldKey.currentState?.openDrawer(),
+        ),
         title: Row(
           children: [
-            Icon(
-              Icons.circle,
-              size: 10,
-              color: switch (_status) {
-                _Status.connected => const Color(0xFF22C55E),
-                _Status.connecting => const Color(0xFFF59E0B),
-                _Status.disconnected => const Color(0xFFEF4444),
-              },
-            ),
+            Icon(Icons.circle, size: 10, color: serverStatusColor(status)),
             const SizedBox(width: 8),
             Expanded(
               child: Text(
-                _title.isNotEmpty ? _title : _settings.host,
+                session.title.isNotEmpty ? session.title : session.profile.label,
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(fontSize: 14),
               ),
@@ -897,29 +1035,36 @@ class _TerminalScreenState extends State<TerminalScreen>
           ],
         ),
         actions: [
-          if (_status == _Status.disconnected)
+          if (status == ServerStatus.disconnected || status == ServerStatus.idle)
             IconButton(tooltip: 'Kết nối lại', icon: const Icon(Icons.refresh), onPressed: _reconnect),
           PopupMenuButton<String>(
             onSelected: (v) => switch (v) {
               'reconnect' => _reconnect(),
               'settings' => _openSettings(),
-              'logout' => _logout(),
+              'edit' => _openServerForm(server: session.profile),
+              'delete' => _confirmDeleteServer(session.profile),
               _ => null,
             },
             itemBuilder: (_) => [
-              PopupMenuItem(value: 'reconnect', enabled: !_connecting, child: const Text('Kết nối lại')),
+              PopupMenuItem(value: 'reconnect', enabled: !session.connecting, child: const Text('Kết nối lại')),
               const PopupMenuItem(value: 'settings', child: Text('Cài đặt')),
-              const PopupMenuItem(value: 'logout', child: Text('Đăng xuất, quên mật khẩu')),
+              const PopupMenuItem(value: 'edit', child: Text('Sửa server')),
+              const PopupMenuItem(value: 'delete', child: Text('Xoá server')),
             ],
           ),
         ],
       ),
       body: Column(
         children: [
-          if (_error != null)
+          if (session.error != null)
             MaterialBanner(
-              content: Text(_error!),
-              actions: [TextButton(onPressed: _reconnect, child: const Text('Thử lại'))],
+              content: Text(session.error!),
+              actions: [
+                TextButton(
+                  onPressed: _reconnect,
+                  child: Text(session.needsPassword ? 'Nhập mật khẩu' : 'Thử lại'),
+                ),
+              ],
             ),
           Expanded(
             child: Stack(
@@ -986,7 +1131,7 @@ class _TerminalScreenState extends State<TerminalScreen>
                     ),
                   ),
                 ),
-                if (!_covered && _status != _Status.connected)
+                if (!_covered && status != ServerStatus.connected)
                   Positioned(
                     left: 16,
                     right: _isScrolledUp && !_isAltBuffer ? 72 : 16,
@@ -1000,19 +1145,25 @@ class _TerminalScreenState extends State<TerminalScreen>
                             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                             minimumSize: const Size(0, 48),
                           ),
-                          onPressed: _status == _Status.disconnected
-                              ? () {
+                          onPressed: status == ServerStatus.connecting
+                              ? null
+                              : () {
                                   HapticFeedback.lightImpact();
                                   _reconnect();
-                                }
-                              : null,
-                          icon: _status == _Status.connecting
+                                },
+                          icon: status == ServerStatus.connecting
                               ? const SizedBox.square(
                                   dimension: 18,
                                   child: CircularProgressIndicator(strokeWidth: 2),
                                 )
                               : const Icon(Icons.refresh),
-                          label: Text(_status == _Status.connecting ? 'Đang kết nối…' : 'Kết nối lại'),
+                          label: Text(
+                            status == ServerStatus.connecting
+                                ? 'Đang kết nối…'
+                                : status == ServerStatus.idle
+                                    ? 'Kết nối'
+                                    : 'Kết nối lại',
+                          ),
                         ),
                       ),
                     ),
@@ -1111,15 +1262,8 @@ class _SettingsSheet extends StatefulWidget {
 
 class _SettingsSheetState extends State<_SettingsSheet> {
   late double _fontSize = snapFontSize(widget.settings.fontSize);
-  late final _startup = TextEditingController(text: widget.settings.startupCommand);
   late bool _showSecondKeyRow = widget.settings.showSecondKeyRow;
   late Set<String> _hiddenKeys = Set<String>.from(widget.settings.hiddenKeyBarKeys);
-
-  @override
-  void dispose() {
-    _startup.dispose();
-    super.dispose();
-  }
 
   Future<void> _customizeKeyBar() async {
     final updated = await showModalBottomSheet<Set<String>>(
@@ -1135,7 +1279,6 @@ class _SettingsSheetState extends State<_SettingsSheet> {
   Future<void> _save() async {
     widget.settings
       ..fontSize = _fontSize
-      ..startupCommand = _startup.text
       ..showSecondKeyRow = _showSecondKeyRow
       ..hiddenKeyBarKeys = Set<String>.from(_hiddenKeys);
     await widget.settings.save();
@@ -1166,15 +1309,6 @@ class _SettingsSheetState extends State<_SettingsSheet> {
                 max: maxTerminalFontSize,
                 divisions: terminalFontSizeDivisions,
                 onChanged: (v) => setState(() => _fontSize = snapFontSize(v)),
-              ),
-              TextField(
-                controller: _startup,
-                autocorrect: false,
-                decoration: const InputDecoration(
-                  labelText: 'Lệnh tự chạy khi kết nối',
-                  hintText: 'vd: tmux new -A -s main',
-                  border: OutlineInputBorder(),
-                ),
               ),
               const SizedBox(height: 8),
               SwitchListTile(

@@ -22,57 +22,115 @@ class TtydKeysApp extends StatelessWidget {
       title: 'TapShell',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(colorSchemeSeed: const Color(0xFF3B82F6), brightness: Brightness.dark),
-      home: settings.rememberPassword && settings.username.isNotEmpty && settings.password.isNotEmpty
+      home: settings.hasAnyPassword
           ? TerminalScreen(settings: settings, lockOnStart: true)
-          : LoginScreen(settings: settings),
+          : LoginScreen(settings: settings, server: settings.activeServer),
     );
   }
 }
 
+class LoginResult {
+  const LoginResult({required this.profile, required this.session});
+
+  final ServerProfile profile;
+  final TtydSession session;
+}
+
 class LoginScreen extends StatefulWidget {
-  const LoginScreen({super.key, required this.settings, this.error});
+  const LoginScreen({
+    super.key,
+    required this.settings,
+    this.server,
+    this.error,
+    this.isRoot = true,
+  });
 
   final Settings settings;
+  final ServerProfile? server;
   final String? error;
+  final bool isRoot;
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  late final _host = TextEditingController(text: widget.settings.host);
-  late final _user = TextEditingController(text: widget.settings.username);
-  late final _pass = TextEditingController(text: widget.settings.password);
-  late bool _remember = widget.settings.rememberPassword;
+  late final _name = TextEditingController(text: widget.server?.name ?? '');
+  late final _host = TextEditingController(
+    text: widget.server?.host ?? (widget.settings.servers.isEmpty ? defaultHost : ''),
+  );
+  late final _user = TextEditingController(text: widget.server?.username ?? '');
+  late final _pass = TextEditingController(text: widget.server?.password ?? '');
+  late final _startup = TextEditingController(text: widget.server?.startupCommand ?? defaultStartupCommand);
   late String? _error = widget.error;
   bool _busy = false;
 
   Future<void> _submit() async {
     final s = widget.settings;
-    s
-      ..host = normalizeHost(_host.text)
-      ..username = _user.text.trim()
-      ..password = _pass.text
-      ..rememberPassword = _remember;
-    if (s.host.isEmpty || s.username.isEmpty || s.password.isEmpty) {
+    final editing = widget.server;
+    final name = _name.text.trim();
+    final host = normalizeHost(_host.text);
+    final username = _user.text.trim();
+    final password = _pass.text;
+    final startupCommand = _startup.text;
+
+    if (host.isEmpty || username.isEmpty || password.isEmpty) {
       setState(() => _error = 'Nhập đủ host, username, mật khẩu.');
       return;
     }
+
+    final duplicate = s.servers.any(
+      (item) =>
+          item.id != editing?.id &&
+          item.host.toLowerCase() == host.toLowerCase() &&
+          item.username == username,
+    );
+    if (duplicate) {
+      setState(() => _error = 'Server này đã có trong danh sách.');
+      return;
+    }
+
     setState(() {
       _busy = true;
       _error = null;
     });
     try {
-      final session = await login(s.host, s.username, s.password);
+      final session = await login(host, username, password);
+      final ServerProfile profile;
+      if (editing != null) {
+        editing
+          ..name = name
+          ..host = host
+          ..username = username
+          ..password = password
+          ..startupCommand = startupCommand;
+        profile = editing;
+      } else {
+        profile = ServerProfile(
+          id: Settings.newServerId(),
+          name: name,
+          host: host,
+          username: username,
+          password: password,
+          startupCommand: startupCommand,
+        );
+        s.servers.add(profile);
+      }
+      s.activeServerId = profile.id;
       await s.save();
-      if (!s.rememberPassword) s.password = '';
       if (!mounted) return;
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => TerminalScreen(settings: s, initialSession: session)),
-      );
+      if (widget.isRoot) {
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (_) => TerminalScreen(settings: s, initialSession: session)),
+        );
+      } else {
+        Navigator.of(context).pop(LoginResult(profile: profile, session: session));
+      }
     } on AuthException catch (e) {
+      if (!mounted) return;
       setState(() => _error = e.message);
     } on Object catch (e) {
+      if (!mounted) return;
       setState(() => _error = 'Lỗi: $e');
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -81,15 +139,20 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   void dispose() {
+    _name.dispose();
     _host.dispose();
     _user.dispose();
     _pass.dispose();
+    _startup.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    final isEdit = widget.server != null;
+    final submitLabel = isEdit && widget.server!.password.isNotEmpty ? 'Lưu' : 'Đăng nhập';
     return Scaffold(
+      appBar: widget.isRoot ? null : AppBar(title: Text(isEdit ? 'Sửa server' : 'Thêm server')),
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
@@ -100,12 +163,22 @@ class _LoginScreenState extends State<LoginScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Text('Terminal', style: Theme.of(context).textTheme.headlineSmall),
-                    const SizedBox(height: 16),
+                    if (widget.isRoot) ...[
+                      Text(isEdit ? 'Đăng nhập' : 'Terminal', style: Theme.of(context).textTheme.headlineSmall),
+                      const SizedBox(height: 16),
+                    ],
                     if (_error != null) ...[
                       Text(_error!, style: const TextStyle(color: Color(0xFFF87171))),
                       const SizedBox(height: 12),
                     ],
+                    TextField(
+                      controller: _name,
+                      decoration: const InputDecoration(
+                        labelText: 'Tên hiển thị (tuỳ chọn)',
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
                     TextField(
                       controller: _host,
                       decoration: const InputDecoration(labelText: 'Host', border: OutlineInputBorder()),
@@ -128,20 +201,25 @@ class _LoginScreenState extends State<LoginScreen> {
                       obscureText: true,
                       onSubmitted: (_) => _submit(),
                     ),
-                    CheckboxListTile(
-                      contentPadding: EdgeInsets.zero,
-                      value: _remember,
-                      onChanged: (v) => setState(() => _remember = v ?? false),
-                      title: const Text('Nhớ mật khẩu (Keychain), tự đăng nhập lại'),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: _startup,
+                      autocorrect: false,
+                      decoration: const InputDecoration(
+                        labelText: 'Lệnh tự chạy khi kết nối',
+                        hintText: 'vd: tmux new -A -s main',
+                        border: OutlineInputBorder(),
+                      ),
+                      onSubmitted: (_) => _submit(),
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 16),
                     FilledButton(
                       onPressed: _busy ? null : _submit,
                       child: Padding(
                         padding: const EdgeInsets.all(12),
                         child: _busy
                             ? const SizedBox.square(dimension: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                            : const Text('Đăng nhập'),
+                            : Text(submitLabel),
                       ),
                     ),
                   ],
@@ -155,9 +233,9 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 }
 
-void showLogin(BuildContext context, Settings settings, {String? error}) {
+void showLogin(BuildContext context, Settings settings, {ServerProfile? server, String? error}) {
   SystemChannels.textInput.invokeMethod('TextInput.hide');
   Navigator.of(context).pushReplacement(
-    MaterialPageRoute(builder: (_) => LoginScreen(settings: settings, error: error)),
+    MaterialPageRoute(builder: (_) => LoginScreen(settings: settings, server: server, error: error)),
   );
 }

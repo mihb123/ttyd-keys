@@ -2,49 +2,49 @@
 
 ## Mục tiêu
 
-Nhớ host, tài khoản, mật khẩu (an toàn), cỡ chữ và lệnh tự chạy giữa các lần mở app.
+Nhớ danh sách server (host, tài khoản, mật khẩu an toàn, lệnh tự chạy), cỡ chữ và thanh phím giữa các lần mở app.
 
 ## Phạm vi hiện tại
 
-- Màn đăng nhập: host, username, mật khẩu, "Nhớ mật khẩu (Keychain), tự đăng nhập lại".
-- Menu ⋮ → Cài đặt (bottom sheet): cỡ chữ 1–24 (bước 0.5, `divisions: 46`), "Lệnh tự chạy khi kết nối", bật/tắt hàng phím thứ hai (`Hiện hàng phím thứ hai`) và chọn từng phím hiển thị (`Tuỳ chỉnh phím hiển thị`, [thanh-phim.md](thanh-phim.md)).
+- Form server (thêm/sửa): tên hiển thị, host, username, mật khẩu (luôn lưu Keychain), "Lệnh tự chạy khi kết nối" ([nhieu-server.md](nhieu-server.md)).
+- Menu ⋮ → Cài đặt (bottom sheet), dùng chung mọi server: cỡ chữ 1–24 (bước 0.5, `divisions: 46`), bật/tắt hàng phím thứ hai (`Hiện hàng phím thứ hai`) và chọn từng phím hiển thị (`Tuỳ chỉnh phím hiển thị`, [thanh-phim.md](thanh-phim.md)).
 - Hai ngón tay chụm/mở trên terminal cũng đổi và lưu cỡ chữ ([cu-chi-terminal.md](cu-chi-terminal.md)).
-- Menu ⋮ → "Đăng xuất, quên mật khẩu": đóng WS, xoá mật khẩu và mã PIN, về màn đăng nhập.
-- Chưa có: nhiều hồ sơ host, theme sáng.
+- Xoá server (menu ⋮ hoặc nhấn giữ trong sidebar): đóng WS, xoá profile + mật khẩu; xoá server cuối cùng thì xoá luôn mã PIN, về màn đăng nhập.
+- Chưa có: theme sáng.
 
 ## Code map
 
-- `lib/settings.dart` — `Settings`: `load`, `save`, `forgetPassword`.
-- `lib/terminal_screen.dart` — `_SettingsSheet`, `_openSettings`, `_logout`.
+- `lib/settings.dart` — `ServerProfile`; `Settings`: `load` (+ `_migrateSingleHost`), `save`, `removeServer`, `forgetPassword`, `forgetAllPasswords`.
+- `lib/terminal_screen.dart` — `_SettingsSheet`, `_openSettings`, `_deleteServer`, `_logout`.
 - `lib/key_bar.dart` — `KeyBarCustomizationSheet`, `keyBarCatalog`.
 - `lib/main.dart` — `main` (`Settings.load`), `_LoginScreenState._submit`.
 
 ## Luồng xử lý
 
-1. `main` gọi `Settings.load()` trước `runApp`; đọc mật khẩu từ secure storage chỉ khi `rememberPassword`.
-2. Đăng nhập thành công (`_LoginScreenState._submit`) → `save()`; không nhớ mật khẩu thì xoá mật khẩu khỏi bộ nhớ sau khi lưu.
-3. Bottom sheet Cài đặt bấm Lưu → gán `fontSize`, `startupCommand`, `showSecondKeyRow`, `hiddenKeyBarKeys` → `save()` → `TerminalScreen` `setState` để vẽ lại.
-4. Đăng xuất → `forgetPassword()` (xoá key `password`) → `save()` → `AppLock.clear()` (xoá `pinHash`, `pinFails`) → màn đăng nhập.
-5. Tự đăng nhập lại thất bại vì sai mật khẩu → `forgetPassword()` ([ket-noi-ttyd.md](ket-noi-ttyd.md)).
+1. `main` gọi `Settings.load()` trước `runApp`: đọc `servers`, rồi mật khẩu `password.<id>` của từng server. Chưa có key `servers` → `_migrateSingleHost` chuyển `host`/`username`/`startupCommand`/`password` cũ thành server đầu tiên (nếu có username), `save()`, xoá key cũ.
+2. Đăng nhập/sửa server thành công (`_LoginScreenState._submit`) → cập nhật `servers`, `activeServerId` → `save()`.
+3. Bottom sheet Cài đặt bấm Lưu → gán `fontSize`, `showSecondKeyRow`, `hiddenKeyBarKeys` → `save()` → `TerminalScreen` `setState` để vẽ lại.
+4. Chuyển server → `activeServerId` → `save()`.
+5. Đăng xuất từ màn khoá → `forgetAllPasswords()` → `save()` → `AppLock.clear()` (xoá `pinHash`, `pinFails`) → màn đăng nhập điền sẵn server gần nhất.
+6. Tự đăng nhập lại thất bại vì sai mật khẩu → `forgetPassword(server)` của riêng server đó ([ket-noi-ttyd.md](ket-noi-ttyd.md)).
 
 ## Dữ liệu & giao thức
 
 | Key | Nơi lưu | Mặc định | Ý nghĩa |
 |---|---|---|---|
-| `host` | SharedPreferences | `remote-ocl.mihb.site` | Host ttyd-auth (không scheme, không path) |
-| `username` | SharedPreferences | rỗng | Tài khoản ttyd-auth |
-| `rememberPassword` | SharedPreferences | `false` | Nhớ mật khẩu, tự đăng nhập lại |
+| `servers` | SharedPreferences | `[]` | JSON list `{id, name, host, username, startupCommand}`; host không scheme, không path; form thêm server đầu tiên điền sẵn `defaultHost` = `remote-ocl.mihb.site` |
+| `activeServerId` | SharedPreferences | — | Server dùng gần nhất, mở app thì nối server này |
 | `fontSize` | SharedPreferences | `14` | Cỡ chữ terminal (1–24 pt) |
-| `startupCommand` | SharedPreferences | `tmux new -A -s mobile` | Gửi kèm `\r` sau output đầu tiên (chờ tối đa 3s) |
 | `showSecondKeyRow` | SharedPreferences | `true` | Hiện hàng 2 của thanh phím; chưa có key này thì đọc key cũ `showKeyBar` (`save()` xoá key cũ) |
 | `hiddenKeyBarKeys` | SharedPreferences | `[]` | Danh sách id phím bị ẩn trên thanh phím (`keyBarCatalog`) |
-| `password` | `flutter_secure_storage` (Keychain iOS / Keystore Android) | — | Chỉ có khi `rememberPassword` |
+| `password.<id>` | `flutter_secure_storage` (Keychain iOS / Keystore Android) | — | Mật khẩu của server `<id>`; luôn lưu khi đăng nhập thành công |
 | `pinHash` | `flutter_secure_storage` | — | `salt:sha256(salt:pin)` của mã PIN 4 số ([khoa-app.md](khoa-app.md)); xoá khi đăng xuất |
 | `pinFails` | `flutter_secure_storage` | — | Số lần nhập PIN sai liên tiếp; tới 10 thì đăng xuất |
 
 ## Quy tắc & lưu ý
 
-- `save()` ghi mật khẩu vào secure storage chỉ khi `rememberPassword` và mật khẩu khác rỗng; ngược lại xoá key `password`.
+- Lệnh tự chạy (`startupCommand` trong JSON server, mặc định `defaultStartupCommand` = `tmux new -A -s mobile`) gửi kèm `\r` sau output đầu tiên (chờ tối đa 3 s).
+- `save()` ghi `password.<id>` khi mật khẩu khác rỗng, ngược lại xoá key đó. Key cũ `host`, `username`, `rememberPassword`, `startupCommand`, `password` chỉ còn được đọc lúc chuyển dữ liệu.
 - Lỗi đọc/ghi secure storage bị nuốt (coi như không có mật khẩu), app vẫn chạy.
 - Mỗi lần mất kết nối ttyd mở shell mới; lệnh tự chạy mặc định `tmux new -A -s mobile` đưa về lại đúng phiên tmux. Xoá trống nếu không muốn.
 - Đổi cỡ chữ làm `TerminalView` đổi số cột/dòng → `onResize` gửi khung resize cho ttyd.
@@ -53,5 +53,4 @@ Nhớ host, tài khoản, mật khẩu (an toàn), cỡ chữ và lệnh tự ch
 ## Còn để lại
 
 - Cỡ chữ 1–2 pt trên màn lớn cho hàng trăm cột/dòng: buffer `maxLines: 10000` phình bộ nhớ, đổi cỡ chữ reflow chậm, vuốt trong tmux/vim bắn nhiều sự kiện cuộn.
-- Không có nút sửa host khi đang ở terminal: phải đăng xuất để đổi host/tài khoản.
 - Chữ có dấu dạng tách (NFD, vd tên file từ macOS) vẫn lệch: xterm 4.0.0 `Buffer.writeChar` cho dấu kết hợp (độ rộng 0) chiếm riêng một ô.

@@ -34,13 +34,14 @@ App Flutter (iOS + Android) làm terminal native cho ttyd sau ttyd-auth, kèm th
 | [feature/nhap-ban-phim-ao.md](feature/nhap-ban-phim-ao.md) | Cầu nối bàn phím ảo (IME) → terminal |
 | [feature/cai-dat.md](feature/cai-dat.md) | Lưu cài đặt, mật khẩu, cỡ chữ, lệnh tự chạy |
 | [feature/cu-chi-terminal.md](feature/cu-chi-terminal.md) | Chạm bật/tắt bàn phím, nhấn giữ sao chép/dán, hai ngón tay đổi cỡ chữ |
+| [feature/nhieu-server.md](feature/nhieu-server.md) | Nhiều server: sidebar vuốt từ mép trái, giữ kết nối song song, thêm/sửa/xoá server |
 | [feature/khoa-app.md](feature/khoa-app.md) | Xác thực bước 2: Face ID/PIN, khoá sau 10 phút ở nền, sai 10 lần thì đăng xuất |
 
 ### Mẫu
 
 - [templates/feature.md](templates/feature.md) — khung bắt buộc cho `feature/*.md`.
 
-## Trạng thái tính năng (2026-11-25)
+## Trạng thái tính năng (2026-11-27)
 
 | Nhóm | Trạng thái |
 |---|---|
@@ -52,7 +53,8 @@ App Flutter (iOS + Android) làm terminal native cho ttyd sau ttyd-auth, kèm th
 | Khoá app (Face ID/PIN, khoá sau 10 phút ở nền) | Xong, chưa thử trên máy thật |
 | Cử chỉ: bật/tắt bàn phím, cuộn lịch sử, nhấn giữ + kéo đầu chọn chữ/copy, pinch cỡ chữ | Xong, chưa thử trên máy thật |
 | Unit test | Chưa làm |
-| Nhiều host / nhiều tab | Chưa làm |
+| Nhiều server (sidebar, giữ kết nối song song) | Xong, chưa thử trên máy thật |
+| Nhiều tab trên một server | Chưa làm (dùng tmux) |
 
 ## Quy ước viết tài liệu
 

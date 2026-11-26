@@ -13,7 +13,7 @@ Chưa có thư mục `test/`. Chỗ nên thêm unit test đầu tiên (`flutter 
 
 | Kịch bản | Mong đợi | Tài liệu |
 |---|---|---|
-| Đăng nhập đúng, bật "Nhớ mật khẩu", tắt app mở lại | Màn khoá + Face ID tự bật; xác thực xong thấy terminal, đèn xanh | [khoa-app.md](feature/khoa-app.md) |
+| Đăng nhập đúng, tắt app mở lại | Màn khoá + Face ID tự bật; xác thực xong thấy terminal, đèn xanh | [khoa-app.md](feature/khoa-app.md) |
 | Sang app khác < 10 phút rồi quay lại | Không hỏi Face ID; mất kết nối thì tự nối lại | [khoa-app.md](feature/khoa-app.md) |
 | Sang app khác ≥ 10 phút (hoặc khoá màn hình) rồi quay lại | Màn khoá, Face ID; sheet Cài đặt đang mở bị đóng | [khoa-app.md](feature/khoa-app.md) |
 | Máy không có Face ID/vân tay, đăng nhập lần đầu | Bắt tạo mã PIN 4 số (nhập 2 lần) | [khoa-app.md](feature/khoa-app.md) |
@@ -25,6 +25,10 @@ Chưa có thư mục `test/`. Chỗ nên thêm unit test đầu tiên (`flutter 
 | Cài đặt tắt thanh phím / ẩn bớt phím / bấm phím custom | Thanh phím ẩn hoặc chỉ hiện phím đã chọn; mỗi phím rung haptic khi bấm | [thanh-phim.md](feature/thanh-phim.md) |
 | Chữ tiếng Việt có dấu (`[Mất kết nối]`), thanh trạng thái tmux có icon | Dấu nằm đúng trên chữ, icon hiện đúng (không còn ô `?`) | [cai-dat.md](feature/cai-dat.md) |
 | Sai mật khẩu | "Sai username hoặc mật khẩu." | [ket-noi-ttyd.md](feature/ket-noi-ttyd.md) |
+| Cập nhật từ bản một host | Server cũ thành server đầu tiên, không phải đăng nhập lại | [nhieu-server.md](feature/nhieu-server.md) |
+| Thêm server thứ 2, vuốt từ mép trái chuyển qua lại | Sidebar mở; server cũ vẫn xanh, lịch sử cuộn còn nguyên, không chạy lại lệnh tự chạy | [nhieu-server.md](feature/nhieu-server.md) |
+| Nhấn giữ server → Ngắt kết nối / Xoá server; xoá server cuối cùng | Chấm xám / server biến mất; xoá hết thì về màn đăng nhập trống | [nhieu-server.md](feature/nhieu-server.md) |
+| Đổi mật khẩu trên server rồi mở lại app | Chỉ server đó hiện form nhập mật khẩu, server khác vẫn dùng được | [nhieu-server.md](feature/nhieu-server.md) |
 | Kết nối > 5 s, tắt mạng vài giây rồi bật / đưa app xuống nền rồi mở lại | `[Mất kết nối]`, tự nối lại | [ket-noi-ttyd.md](feature/ket-noi-ttyd.md) |
 | Lệnh tự chạy mặc định `tmux new -A -s mobile`, rớt mạng | Nối lại đúng phiên tmux cũ | [cai-dat.md](feature/cai-dat.md) |
 | Ctrl chạm 1 lần + gõ `c` | Gửi `^C`, Ctrl tự tắt | [thanh-phim.md](feature/thanh-phim.md) |
