@@ -36,6 +36,7 @@ lib/
   main.dart             entry, TtydKeysApp (chọn màn đầu), LoginScreen, showLogin
   terminal_screen.dart  TerminalScreen: kết nối/nối lại, nối IME + thanh phím vào Terminal, _SettingsSheet
   ttyd_client.dart      HTTP đăng nhập + WebSocket ttyd (chỉ dart:io)
+  fixed_terminal.dart   FixedTerminal: Terminal của xterm 4 sửa ESC[1K/1J/0X ném RangeError, màu 256 ngoài dải, write không kẹt khi parser ném lỗi
   output_throttle.dart  OutputThrottle: ghi output vào Terminal theo ngân sách mỗi frame, dừng đọc socket khi tồn đọng
   terminal_input.dart   TextInputClient nhận bàn phím ảo, so khác biệt, phát onTyped/onDelete/onEnter
   key_bar.dart          danh mục phím, widget thanh phím tuỳ chỉnh + haptic, KeyBarCustomizationSheet

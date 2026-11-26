@@ -11,6 +11,11 @@ Mỗi commit thay đổi tính năng, sửa lỗi, build hoặc tài liệu thê
 - Không ghi hash (commit không chứa được hash của chính nó); cần hash thì `git blame CHANGELOG.md`. Dòng cũ có hash giữ nguyên.
 - Không tạo commit riêng cho changelog: `git add CHANGELOG.md <file đã sửa> && git commit`.
 
+## 2026-11-26
+
+- Sửa: `cat` trong tmux hiện đủ tới prompt cuối, không còn đứng giữa chừng phải vuốt xuống; lỗi `ESC[1K` của xterm 4 làm parser ném lỗi ([ket-noi-ttyd](docs/feature/ket-noi-ttyd.md)).
+- Sửa: tmux prefix+w gõ bằng bộ gõ Telex (`w` thành `ư`) vẫn mở danh sách window ([nhap-ban-phim-ao](docs/feature/nhap-ban-phim-ao.md)).
+
 ## 2026-11-25
 
 - Tài liệu: dòng CHANGELOG commit chung với thay đổi, không ghi hash, không tách commit riêng.

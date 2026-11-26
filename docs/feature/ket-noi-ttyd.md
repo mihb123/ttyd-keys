@@ -14,12 +14,14 @@ Mở terminal ttyd (sau ttyd-auth) trong app native, tự đăng nhập lại kh
 - Tự nối lại khi app quay về foreground hoặc khi rớt sau phiên dài hơn 5 s. Rời app từ 10 phút trở lên thì khoá trước ([khoa-app.md](khoa-app.md)), kết nối vẫn nối lại phía sau.
 - Menu ⋮ → "Đăng xuất, quên mật khẩu".
 - In output lớn (`cat` file dài) không treo app: output được ghi dần theo frame, tồn đọng nhiều thì tạm dừng server.
+- `cat` trong tmux hiện đủ tới prompt cuối: lỗi parse của xterm không còn làm màn hình đứng giữa chừng.
 - Chưa có: nhiều host/nhiều tab, giữ shell khi rớt (phải dùng tmux), chứng chỉ tự ký.
 
 ## Code map
 
 - `lib/ttyd_client.dart` — `login` (POST `/login` + GET `/` lấy khóa tab), `TtydConnection` (WebSocket, giải mã khung), `AuthException`, `normalizeHost`.
 - `lib/main.dart` — `TtydKeysApp` (chọn màn đầu), `_LoginScreenState._submit`, `showLogin` (ẩn bàn phím, thay route).
+- `lib/fixed_terminal.dart` — `FixedTerminal`: `eraseLineLeft`/`eraseDisplayAbove` (xoá tới hết ô con trỏ, không ném ở cột 0), `eraseChars` (số ô < 1 tính là 1), `setForegroundColor256`/`setBackgroundColor256` (bỏ màu ngoài 0–255), `write` (bắt lỗi parser, báo `FlutterError.reportError` lần đầu, xử lý tiếp phần còn lại tối đa 64 lần; lỗi từ listener thì ném lại).
 - `lib/output_throttle.dart` — `OutputThrottle`: hàng đợi output, ghi vào `Terminal` theo ngân sách mỗi frame, gọi `onPause`/`onResume` khi tồn đọng.
 - `lib/terminal_screen.dart` — `_TerminalScreenState`: `_output`, `_connect`, `_reconnect`, `_freshSession`, `_open`, `didChangeAppLifecycleState`, `_logout`, AppBar trạng thái.
 
@@ -68,6 +70,7 @@ sequenceDiagram
 - Chỉ nối lại tự động khi kết nối trước sống > 5 s: tránh vòng lặp nối/đóng liên tục khi server từ chối ngay.
 - Lệnh tự chạy gửi sau khung output đầu tiên hoặc tối đa 3 s, và chỉ gửi nếu kết nối đó vẫn là kết nối hiện tại.
 - Phát hiện cookie hết hạn bằng chuỗi `401` trong message của `WebSocketException` (phụ thuộc thông báo lỗi của `dart:io`).
+- xterm 4.0.0 `Buffer.eraseLineToCursor` gọi `eraseRange(0, cursorX)`: con trỏ ở cột 0 thì `getWidth(-1)` ném `RangeError`, và thiếu ô con trỏ. tmux gửi `ESC[1K` khi vẽ lại nên `cat` trong tmux ném lỗi giữa chừng: phần sau trong parser chỉ chạy khi có output mới, `notifyListeners` không được gọi, màn hình đứng ở trạng thái cũ. `FixedTerminal` sửa `eraseLineLeft`, `eraseDisplayAbove` (`ESC[1J` cùng lỗi), `eraseChars` (`ESC[0X` ở cột 0 cũng ném), chặn màu 256 ngoài 0–255 (nếu không `paint` ném mỗi frame) và bọc `write` (vd SGR thiếu tham số `ESC[38;5m` ném trong parser private) để lỗi parser khác cũng không làm kẹt.
 - Không ghi output thẳng vào `_terminal.write`, luôn qua `_output.add` để giữ thứ tự và không chặn luồng UI. xterm đã chỉ vẽ dòng trong viewport; phần chậm là parse, nên giới hạn theo thời gian parse mỗi frame.
 - Hàng đợi tối đa ~256K ký tự nên màn hình chỉ trễ output thật một đoạn ngắn, Ctrl+C dừng gần như ngay. Không dùng khung PAUSE của ttyd vì ttyd 1.7.4 bỏ qua ([api_specifications.md](../api_specifications.md#khung-tin-nhắn-ttyd-174)).
 - xterm tự bám đáy (`_stickToBottom` trong `RenderTerminal`) khi view đang ở đáy; người dùng cuộn lên thì đứng yên như terminal thật.
@@ -79,4 +82,6 @@ sequenceDiagram
 - `_LoginScreenState._submit` gọi `setState` trong hai nhánh `catch` không kiểm `mounted`.
 - Ở nền không có frame nên hàng đợi không chạy; đang in nhiều mà rời app > 10 s thì socket dừng đọc quá ping, kết nối đóng, về foreground tự nối lại.
 - Không có tmux thì `cat` file rất lớn chạy theo tốc độ parse của xterm (in đủ từng dòng); có tmux thì tmux tự bỏ khung trung gian nên nhanh hơn.
+- Chưa kiểm chứng (Neon phản biện): ở buffer chính, `RenderTerminal.performLayout` gọi `correctBy` sau `applyContentDimensions`; đổi chiều cao viewport (đóng bàn phím) đúng lúc output đang đổ có thể khởi chạy bounce của iOS và làm mất bám đáy.
+- `deleteChars` (`ESC[P`) khi con trỏ ở ô sau cùng vi phạm assert của xterm ở bản debug (release không ném).
 - Server trả mã khác `401` khi cookie hết hạn (vd `403`) thì app chỉ báo lỗi, không tự đăng nhập lại.

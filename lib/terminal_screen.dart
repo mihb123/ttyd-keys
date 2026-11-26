@@ -9,6 +9,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:xterm/xterm.dart';
 
 import 'app_lock.dart';
+import 'fixed_terminal.dart';
 import 'key_bar.dart';
 import 'key_handler.dart';
 import 'lock_screen.dart';
@@ -41,7 +42,7 @@ class TerminalScreen extends StatefulWidget {
 
 class _TerminalScreenState extends State<TerminalScreen>
     with WidgetsBindingObserver, SingleTickerProviderStateMixin {
-  final _terminal = Terminal(
+  final _terminal = FixedTerminal(
     maxLines: 10000,
     inputHandler: const FixedKeyHandler(),
     mouseHandler: const FixedMouseHandler(),
@@ -352,8 +353,13 @@ class _TerminalScreenState extends State<TerminalScreen>
   void _send(String data) {
     final conn = _conn;
     if (conn == null || !conn.isOpen) return;
+    _afterTmuxPrefix = data == _tmuxPrefix;
     conn.input(data);
   }
+
+  static const _tmuxPrefix = '\x02';
+  static const _telexW = {'ư': 'w', 'Ư': 'W'};
+  bool _afterTmuxPrefix = false;
 
   String _withMods(String data) =>
       applyModifiers(data, ctrl: _mods.isOn(Mod.ctrl), alt: _mods.isOn(Mod.alt), shift: _mods.isOn(Mod.shift));
@@ -361,11 +367,14 @@ class _TerminalScreenState extends State<TerminalScreen>
   bool _onTyped(String text) {
     _dismissSelectionAndMenu();
     _scrollToBottom();
-    if (!_mods.any || text.runes.length != 1) {
-      _terminal.textInput(text);
-      return false;
+    final telexW = (_afterTmuxPrefix && _isAltBuffer) || _mods.isOn(Mod.ctrl) || _mods.isOn(Mod.alt);
+    final key = telexW ? _telexW[text] : null;
+    final input = key ?? text;
+    if (!_mods.any || input.runes.length != 1) {
+      _terminal.textInput(input);
+      return key != null;
     }
-    _terminal.textInput(_withMods(text));
+    _terminal.textInput(_withMods(input));
     _mods.consume();
     return true;
   }
