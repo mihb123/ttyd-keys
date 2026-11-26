@@ -11,6 +11,10 @@ Mỗi commit thay đổi tính năng, sửa lỗi, build hoặc tài liệu thê
 - Không ghi hash (commit không chứa được hash của chính nó); cần hash thì `git blame CHANGELOG.md`. Dòng cũ có hash giữ nguyên.
 - Không tạo commit riêng cho changelog: `git add CHANGELOG.md <file đã sửa> && git commit`.
 
+## 2026-11-27
+
+- Tài liệu: agent làm xong việc thì tự push `main` và theo dõi CI tới khi xanh ([AGENTS.md](AGENTS.md#commit)).
+
 ## 2026-11-26
 
 - Bàn phím ảo: bộ gõ Telex gõ `w` một lần ra `w` (không cần `ww`); muốn `ư` gõ `uw` ([nhap-ban-phim-ao](docs/feature/nhap-ban-phim-ao.md)).

@@ -17,7 +17,7 @@
 |---|---|
 | `make analyze` | Sau mỗi thay đổi Dart, phải sạch |
 | `make docs-check` | Sau mỗi thay đổi `.md`, phải sạch |
-| `make ios-ipa` / `make android-apk` | Lấy bản build sau khi push `main` (iOS tự build khi push; Android build khi chạy lệnh) |
+| `make ios-ipa` / `make android-apk` | Lấy bản build sau khi push `main` và CI xanh (iOS tự build khi push; Android build khi chạy lệnh) |
 
 ## Quy tắc code
 
@@ -50,7 +50,8 @@ Làm xong một tính năng, sửa lỗi hoặc cải thiện thì cập nhật 
 
 ## Commit
 
-- Làm xong một việc (code + docs + dòng CHANGELOG, `make analyze` / `make docs-check` sạch) thì commit luôn, không push: người dùng tự push (push `main` kích hoạt build iOS).
+- Làm xong một việc (code + docs + dòng CHANGELOG, `make analyze` / `make docs-check` sạch) thì commit rồi tự `git push origin main` luôn, không chờ người dùng. Đang ở nhánh khác có việc dở (vd `multi-server`) thì làm việc mới trong worktree của `main` (`git worktree add ../ttyd-keys-main main`); việc của nhánh đó chỉ commit, push khi merge vào `main`.
+- Sau push, theo dõi CI tới khi xong: `gh run list -L 3` lấy run của commit vừa push, `gh run watch <id> --exit-status`. Run hỏng thì `gh run view <id> --log-failed`, sửa, commit, push lại tới khi xanh rồi mới báo xong. Push chỉ đổi docs không khớp `on.push.paths` của `build.yml` thì không có run.
 - Nhiều agent cùng làm: phần của ai người đó tự commit. Chỉ `git add <file>` những file mình sửa (file chung thì `git add -p`); không `git add -A` / `git add .` / `git commit -a`; không commit, stash, reset, checkout thay đổi của agent khác.
 - Message một dòng, nói thay đổi gì, vd `Thanh phím: thêm phím F1–F12`.
 - Thêm dòng vào [CHANGELOG.md](CHANGELOG.md) theo định dạng đầu file đó và commit chung với thay đổi, không tách commit riêng.
