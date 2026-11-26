@@ -31,6 +31,7 @@ class TerminalInputState extends State<TerminalInput> with TextInputClient {
     selection: const TextSelection.collapsed(offset: _pad),
   );
   static const _maxBuffer = 200;
+  static const _telexW = {'ư': 'w', 'Ư': 'W'};
 
   TextInputConnection? _connection;
   late TextEditingValue _value = _empty;
@@ -129,9 +130,10 @@ class TerminalInputState extends State<TerminalInput> with TextInputClient {
     final padLost = _padLeft > padLeft ? _padLeft - padLeft : 0;
     _padLeft = padLeft;
     final added = String.fromCharCodes(newRunes.sublist(p));
+    final key = oldRunes.length == p ? _telexW[added] : null;
     final deleted = oldRunes.length - p + (oldRunes.isEmpty && added.isEmpty ? padLost : 0);
     if (deleted > 0) widget.onDelete(deleted);
-    final needReset = added.isNotEmpty && _emit(added);
+    final needReset = added.isNotEmpty && (_emit(key ?? added) || key != null);
     if (needReset ||
         (padLeft < _pad && (newTyped.isEmpty || added.endsWith(' '))) ||
         (added.endsWith(' ') && _typed.runes.length > 40) ||

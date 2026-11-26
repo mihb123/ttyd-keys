@@ -13,6 +13,7 @@ Mỗi commit thay đổi tính năng, sửa lỗi, build hoặc tài liệu thê
 
 ## 2026-11-26
 
+- Bàn phím ảo: bộ gõ Telex gõ `w` một lần ra `w` (không cần `ww`); muốn `ư` gõ `uw` ([nhap-ban-phim-ao](docs/feature/nhap-ban-phim-ao.md)).
 - Sửa: bộ gõ Telex gõ `ww` rồi gõ tiếp (vd `whoami`) không còn mất chữ `w` ([nhap-ban-phim-ao](docs/feature/nhap-ban-phim-ao.md)).
 - Sửa: `cat` trong tmux hiện đủ tới prompt cuối, không còn đứng giữa chừng phải vuốt xuống; lỗi `ESC[1K` của xterm 4 làm parser ném lỗi ([ket-noi-ttyd](docs/feature/ket-noi-ttyd.md)).
 - Sửa: tmux prefix+w gõ bằng bộ gõ Telex (`w` thành `ư`) vẫn mở danh sách window ([nhap-ban-phim-ao](docs/feature/nhap-ban-phim-ao.md)).

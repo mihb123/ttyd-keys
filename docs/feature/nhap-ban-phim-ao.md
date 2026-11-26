@@ -7,14 +7,15 @@ Nhận chữ từ bàn phím ảo iOS/Android (kể cả gõ tiếng Việt, xo�
 ## Phạm vi hiện tại
 
 - Gõ chữ, xoá, Enter từ bàn phím ảo; ghép modifier dính của thanh phím vào ký tự vừa gõ.
-- Bộ gõ tiếng Việt Telex đổi `w` thành `ư`: trong tmux (alternate buffer), phím gõ ngay sau prefix `^B` mà ra `ư`/`Ư` thì gửi `w`/`W`, nên prefix+w (danh sách window) chạy mà không cần đổi bộ gõ. Ctrl/Alt dính + `ư` cũng tính là `w` (vd Ctrl+w).
+- Bộ gõ tiếng Việt Telex: gõ `w` một lần ra `w`/`W` (bộ gõ chèn `ư`/`Ư` mới, không thay chữ nào thì gửi `w`/`W`), nên lệnh như `whoami`, prefix+w của tmux, Ctrl+w chạy mà không cần đổi bộ gõ. Muốn ra `ư` thì gõ `uw` (bộ gõ thay `u` bằng `ư`, giữ nguyên).
 - Tắt autocorrect, gợi ý, smart quotes/dashes, học cá nhân; bàn phím tối.
 - Chạm vào terminal → bật/tắt bàn phím; nhấn giữ → menu Sao chép/Dán ([cu-chi-terminal.md](cu-chi-terminal.md)).
 
 ## Code map
 
 - `lib/terminal_input.dart` — `TerminalInputState` (`TextInputClient`): `show`, `hide`, `isAttached` (báo đổi qua `onAttachChanged`), `reset`, `updateEditingValue`, `_emit`, `performAction`, `connectionClosed`.
-- `lib/terminal_screen.dart` — `_onTyped`, `_onDelete`, `_onEnter` (nối IME với `Terminal` và `Modifiers`); `_send` ghi `_afterTmuxPrefix`, `_telexW` (bảng `ư`→`w`).
+- `lib/terminal_input.dart` — `_telexW` (bảng `ư`→`w`).
+- `lib/terminal_screen.dart` — `_onTyped`, `_onDelete`, `_onEnter` (nối IME với `Terminal` và `Modifiers`).
 
 ## Luồng xử lý
 
@@ -22,12 +23,13 @@ Nhận chữ từ bàn phím ảo iOS/Android (kể cả gõ tiếng Việt, xo�
 2. `updateEditingValue`:
    - Đang có vùng composing (đang gõ dấu) → chờ, chưa gửi.
    - So text mới (đã bỏ `\u200B`) với `_typed` cũ theo rune: phần chung đầu giữ nguyên, phần cũ thừa = số lần xoá, phần mới = chữ thêm.
-   - Số `\u200B` giảm so với lần trước (`_padLeft`) khi bộ đệm chữ đã rỗng và lần này không thêm chữ (phím xoá thật) → cộng số `\u200B` mất vào số lần xoá. Còn chữ trong bộ đệm (giữ phím xoá iOS xoá cả từ lẫn đệm) hoặc có thêm chữ thì bỏ qua: Telex soạn lại từ có thể ăn `\u200B` (U+200B không phải ranh giới từ), vd gõ `ww` rồi `h`.
+   - Số `\u200B` giảm so với lần trước (`_padLeft`) khi bộ đệm chữ đã rỗng và lần này không thêm chữ (phím xoá thật) → cộng số `\u200B` mất vào số lần xoá. Còn chữ trong bộ đệm (giữ phím xoá iOS xoá cả từ lẫn đệm) hoặc có thêm chữ thì bỏ qua: Telex soạn lại từ có thể ăn `\u200B` (U+200B không phải ranh giới từ).
+   - Không xoá chữ cũ nào và phần mới đúng là `ư`/`Ư` → đổi thành `w`/`W` và reset bộ đệm, để Telex không ghép `ư` với phím sau (vd `ưr` → `ử`).
 3. Xoá → `_onDelete(count)`: có modifier và `count == 1` → `keyInput(backspace)` có Ctrl/Alt; còn lại gửi `0x7f` × count.
 4. Chữ thêm → `_emit`: tách theo xuống dòng; mỗi đoạn → `_onTyped`, mỗi dấu xuống dòng → `_onEnter`.
-5. `_onTyped`: chữ là `ư`/`Ư` và (đang alternate buffer và input vừa gửi đúng là `\x02` — `_afterTmuxPrefix`, đặt ở `_send` cho mọi input đã gửi: nút `^B`, Ctrl dính + b, phím, chuột — hoặc Ctrl/Alt đang bật) → coi là `w`/`W`, reset bộ đệm. Sau đó: có modifier và đúng 1 rune → `applyModifiers` rồi `consume`, yêu cầu reset bộ đệm; ngược lại gửi nguyên.
+5. `_onTyped`: có modifier và đúng 1 rune → `applyModifiers` rồi `consume`, yêu cầu reset bộ đệm; ngược lại gửi nguyên.
 6. Nút Done/Return (`performAction`) → `_onEnter` + `reset`.
-7. Reset bộ đệm khi: vừa áp modifier, vừa Enter, thiếu `\u200B` mà bộ đệm chữ đã rỗng hoặc vừa gõ dấu cách (không reset giữa từ đang soạn), gõ dấu cách khi bộ đệm > 40 rune, hoặc bộ đệm > 200 rune.
+7. Reset bộ đệm khi: vừa đổi `ư`→`w`, vừa áp modifier, vừa Enter, thiếu `\u200B` mà bộ đệm chữ đã rỗng hoặc vừa gõ dấu cách (không reset giữa từ đang soạn), gõ dấu cách khi bộ đệm > 40 rune, hoặc bộ đệm > 200 rune.
 
 ## Dữ liệu & giao thức
 
@@ -36,7 +38,7 @@ Nhận chữ từ bàn phím ảo iOS/Android (kể cả gõ tiếng Việt, xo�
 
 ## Quy tắc & lưu ý
 
-- Chỉ đổi ngay sau `^B` (prefix mặc định của tmux) và ở alternate buffer, để `^B` (lùi con trỏ) rồi gõ `ư` ở shell thường không bị đổi; prefix khác (vd `^A`) chưa hỗ trợ. Chỉ đổi `ư`/`Ư`: `[`/`]` (Telex mở rộng ra `ư`/`ơ`) không đoán được nên không đổi.
+- Chỉ đổi `ư` do bộ gõ chèn mới; `ư` thay cho `u` (`uw`, `tuw`, `nguoiw` → `ngươi`) giữ nguyên. `tw` ra `tw`, không ra `tư`. `[`/`]` (Telex mở rộng ra `ư`/`ơ`) không đổi.
 - Bộ đệm `_typed` giữ chữ đã gõ trong từ hiện tại để IME còn sửa được (gõ dấu, gợi ý).
 - Đệm `\u200B` để phím xoá luôn có ký tự để xoá khi bộ đệm rỗng.
 - So khác biệt theo rune, không theo code unit.
@@ -47,5 +49,5 @@ Nhận chữ từ bàn phím ảo iOS/Android (kể cả gõ tiếng Việt, xo�
 ## Còn để lại
 
 - Chưa có test tự động cho thuật toán so khác biệt; kiểm thủ công theo [testing.md](../testing.md).
-- Đổi `ư`→`w` sau `^B` áp cho mọi chương trình ở alternate buffer (vim, less… ngoài tmux): `^B` rồi gõ `ư` sẽ ra `w`.
-- Gõ `ww` theo thói quen Telex sau prefix: chữ `w` đầu mở danh sách window, chữ thứ hai thành `ư` gửi vào `choose-tree`.
+- Gõ `ww` theo thói quen Telex cũ giờ ra `ww` (sau prefix tmux: `w` đầu mở danh sách window, `w` thứ hai gửi vào `choose-tree`).
+- Chưa kiểm chứng trên iPhone thật việc bàn phím Telex bỏ ngữ cảnh `ư` sau khi app reset; nếu không, phím dấu ngay sau (`s f r x j`) có thể ra chữ có dấu.
