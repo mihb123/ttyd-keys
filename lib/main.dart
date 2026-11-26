@@ -19,7 +19,7 @@ class TtydKeysApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'ttyd keys',
+      title: 'TapShell',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(colorSchemeSeed: const Color(0xFF3B82F6), brightness: Brightness.dark),
       home: settings.rememberPassword && settings.username.isNotEmpty && settings.password.isNotEmpty

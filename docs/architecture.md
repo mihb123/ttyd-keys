@@ -1,4 +1,4 @@
-# Kiến trúc ttyd keys
+# Kiến trúc TapShell
 
 ## 1. Bức tranh tổng thể
 
@@ -99,7 +99,8 @@ lib/
 | | iOS | Android |
 |---|---|---|
 | ID | `site.mihb.ttydKeys` | `site.mihb.ttyd_keys` |
-| Tên hiển thị | `ttyd keys` | `ttyd keys` |
+| Tên hiển thị | `TapShell` (`CFBundleDisplayName`, `CFBundleName`) | `TapShell` (`android:label`) |
+| Icon | `AppIcon.appiconset` | `mipmap-*/ic_launcher.png` + adaptive (nền `#111530`) |
 | Bản phát hành | `.ipa` chưa ký (ký bằng Impactor) | `.apk` release |
 
 Build và cài: [deployment_guide.md](deployment_guide.md).

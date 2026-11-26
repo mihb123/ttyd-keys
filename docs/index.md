@@ -1,4 +1,4 @@
-# Tài liệu ttyd keys
+# Tài liệu TapShell
 
 App Flutter (iOS + Android) làm terminal native cho ttyd sau ttyd-auth, kèm thanh phím Esc/Tab/Ctrl/Alt/Shift/mũi tên. Không có backend trong repo; build qua GitHub Actions.
 

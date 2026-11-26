@@ -1,0 +1,133 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <title>TermKey Adaptive Icon Foreground</title>
+  <defs>
+    <linearGradient id="keycapRimGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#586BB3"/>
+      <stop offset="35%" stop-color="#252F5C"/>
+      <stop offset="100%" stop-color="#11162E"/>
+    </linearGradient>
+    <linearGradient id="keycapSkirtGrad" x1="0" y1="0" x2="0.2" y2="1">
+      <stop offset="0%" stop-color="#2F3B6F"/>
+      <stop offset="55%" stop-color="#1B2246"/>
+      <stop offset="100%" stop-color="#131833"/>
+    </linearGradient>
+    <linearGradient id="dishRimGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#090C1A"/>
+      <stop offset="100%" stop-color="#293463"/>
+    </linearGradient>
+    <linearGradient id="faceGrad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#161D3B"/>
+      <stop offset="100%" stop-color="#0A0E20"/>
+    </linearGradient>
+    <radialGradient id="faceSheen" cx="20%" cy="14%" r="68%">
+      <stop offset="0%" stop-color="#93C5FD" stop-opacity="0.11"/>
+      <stop offset="100%" stop-color="#93C5FD" stop-opacity="0"/>
+    </radialGradient>
+
+    <linearGradient id="chevronGrad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#00FFA3"/>
+      <stop offset="100%" stop-color="#00E5D4"/>
+    </linearGradient>
+    <linearGradient id="cursorGrad" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#6CF6FF"/>
+      <stop offset="100%" stop-color="#00C4FF"/>
+    </linearGradient>
+
+    <linearGradient id="keyVioletRim" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#C4B5FD"/>
+      <stop offset="40%" stop-color="#6D28D9"/>
+      <stop offset="100%" stop-color="#3B1578"/>
+    </linearGradient>
+    <linearGradient id="keyVioletSkirt" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#6D28D9"/>
+      <stop offset="100%" stop-color="#481B90"/>
+    </linearGradient>
+    <linearGradient id="keyVioletTop" x1="0" y1="0" x2="0.2" y2="1">
+      <stop offset="0%" stop-color="#A78BFA"/>
+      <stop offset="100%" stop-color="#7C3AED"/>
+    </linearGradient>
+
+    <linearGradient id="keySlateRim" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#6478BD"/>
+      <stop offset="45%" stop-color="#283360"/>
+      <stop offset="100%" stop-color="#131933"/>
+    </linearGradient>
+    <linearGradient id="keySlateSkirt" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#2D396B"/>
+      <stop offset="100%" stop-color="#171E3C"/>
+    </linearGradient>
+    <linearGradient id="keySlateTop" x1="0" y1="0" x2="0.2" y2="1">
+      <stop offset="0%" stop-color="#485B9E"/>
+      <stop offset="100%" stop-color="#283461"/>
+    </linearGradient>
+
+    <linearGradient id="keyCyanRim" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#99F6E4"/>
+      <stop offset="40%" stop-color="#0D9488"/>
+      <stop offset="100%" stop-color="#09455C"/>
+    </linearGradient>
+    <linearGradient id="keyCyanSkirt" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#0D9488"/>
+      <stop offset="100%" stop-color="#0B5470"/>
+    </linearGradient>
+    <linearGradient id="keyCyanTop" x1="0" y1="0" x2="0.2" y2="1">
+      <stop offset="0%" stop-color="#2FF5C8"/>
+      <stop offset="100%" stop-color="#00BCE8"/>
+    </linearGradient>
+
+    <filter id="softShadow" x="-15%" y="-15%" width="130%" height="130%">
+      <feGaussianBlur stdDeviation="12"/>
+    </filter>
+    <filter id="neonGlow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="16"/>
+    </filter>
+
+    <clipPath id="faceClip">
+      <rect x="196" y="178" width="632" height="434" rx="88"/>
+    </clipPath>
+    <clipPath id="safeCircle">
+      <circle cx="512" cy="512" r="298"/>
+    </clipPath>
+  </defs>
+
+  <g clip-path="url(#safeCircle)">
+    <g transform="translate(512 512) scale(0.585) translate(-512 -512)">
+      <g opacity="0.45" filter="url(#softShadow)">
+        <rect x="162" y="164" width="700" height="536" rx="124" fill="#040610"/>
+        <rect x="162" y="742" width="180" height="144" rx="54" fill="#040610"/>
+        <rect x="382" y="742" width="260" height="144" rx="48" fill="#040610"/>
+        <rect x="682" y="742" width="180" height="144" rx="54" fill="#040610"/>
+      </g>
+
+      <g id="main-keycap">
+        <rect x="162" y="150" width="700" height="536" rx="124" fill="url(#keycapRimGrad)"/>
+        <rect x="162" y="156" width="700" height="530" rx="122" fill="url(#keycapSkirtGrad)"/>
+        <rect x="192" y="174" width="640" height="442" rx="92" fill="url(#dishRimGrad)"/>
+        <rect x="196" y="178" width="632" height="434" rx="88" fill="url(#faceGrad)"/>
+        <rect x="196" y="178" width="632" height="434" rx="88" fill="url(#faceSheen)" clip-path="url(#faceClip)"/>
+
+        <g opacity="0.52" filter="url(#neonGlow)">
+          <path d="M 326 292 L 466 395 L 326 498" fill="none" stroke="#00FFA3" stroke-width="84" stroke-linecap="round" stroke-linejoin="round"/>
+          <rect x="548" y="456" width="192" height="84" rx="42" fill="#00D8FF"/>
+        </g>
+
+        <path d="M 326 292 L 466 395 L 326 498" fill="none" stroke="url(#chevronGrad)" stroke-width="84" stroke-linecap="round" stroke-linejoin="round"/>
+        <rect x="548" y="456" width="192" height="84" rx="42" fill="url(#cursorGrad)"/>
+      </g>
+
+      <g id="aux-key-bar">
+        <rect x="162" y="730" width="180" height="144" rx="54" fill="url(#keyVioletRim)"/>
+        <rect x="162" y="735" width="180" height="139" rx="52" fill="url(#keyVioletSkirt)"/>
+        <rect x="174" y="738" width="156" height="106" rx="40" fill="url(#keyVioletTop)"/>
+
+        <rect x="382" y="730" width="260" height="144" rx="48" fill="url(#keySlateRim)"/>
+        <rect x="382" y="735" width="260" height="139" rx="46" fill="url(#keySlateSkirt)"/>
+        <rect x="394" y="738" width="236" height="106" rx="36" fill="url(#keySlateTop)"/>
+
+        <rect x="682" y="730" width="180" height="144" rx="54" fill="url(#keyCyanRim)"/>
+        <rect x="682" y="735" width="180" height="139" rx="52" fill="url(#keyCyanSkirt)"/>
+        <rect x="694" y="738" width="156" height="106" rx="40" fill="url(#keyCyanTop)"/>
+      </g>
+    </g>
+  </g>
+</svg>

@@ -1,4 +1,4 @@
-# ttyd keys
+# TapShell
 
 App Flutter (iOS + Android) làm terminal native cho ttyd sau ttyd-auth (`remote-ocl.mihb.site`), kèm thanh phím mà bàn phím điện thoại thiếu.
 
@@ -20,6 +20,7 @@ Flutter 3.50.1, `xterm` 4, `flutter_secure_storage`, `shared_preferences`, `loca
 ```text
 lib/              toàn bộ code Dart (12 file, xem docs/architecture.md)
 assets/fonts/     font terminal JetBrains Mono Nerd Font Mono (OFL)
+assets/icon/      logo app (SVG gốc + PNG 1024), sinh icon bằng `dart run flutter_launcher_icons`
 scripts/          pull-build.sh: tải artifact theo commit; install-build.sh: cài lên máy qua USB
 ios/, android/    project native (Flutter sinh)
 .github/          workflows/build.yml (iOS, khi push), build-android.yml (Android, khi gọi)

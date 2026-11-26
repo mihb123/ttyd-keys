@@ -31,6 +31,7 @@ Phiên bản lấy từ `pubspec.lock`, `.github/workflows/build.yml` (2026-11-2
 | GitHub Actions (`.github/workflows/build.yml`, `build-android.yml`) | Build `.ipa` chưa ký (`macos-latest`) khi push `main`; `.apk` (`ubuntu-latest`) khi chạy `make android-apk` |
 | `scripts/pull-build.sh` (`gh`) | Tải artifact của run mới nhất |
 | Impactor | Ký `.ipa` bằng Apple ID và cài qua USB |
+| `flutter_launcher_icons` 0.14.4 (khối `flutter_launcher_icons:` trong `pubspec.yaml`) | Sinh icon iOS/Android từ `assets/icon/icon.png`, `icon-foreground.png` |
 
 ## Kiểm tra
 
