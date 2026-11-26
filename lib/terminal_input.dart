@@ -35,6 +35,7 @@ class TerminalInputState extends State<TerminalInput> with TextInputClient {
   TextInputConnection? _connection;
   late TextEditingValue _value = _empty;
   String _typed = '';
+  int _padLeft = _pad;
 
   @override
   void initState() {
@@ -79,6 +80,7 @@ class TerminalInputState extends State<TerminalInput> with TextInputClient {
         ),
       );
       _typed = '';
+      _padLeft = _pad;
       _value = _empty;
       _connection!.setEditingState(_value);
       widget.onAttachChanged?.call();
@@ -98,6 +100,7 @@ class TerminalInputState extends State<TerminalInput> with TextInputClient {
 
   void reset() {
     _typed = '';
+    _padLeft = _pad;
     _value = _empty;
     _connection?.setEditingState(_value);
   }
@@ -123,12 +126,14 @@ class TerminalInputState extends State<TerminalInput> with TextInputClient {
       p++;
     }
     _typed = newTyped;
-    final deleted = oldRunes.length - p + (padLeft < _pad ? _pad - padLeft : 0);
-    if (deleted > 0) widget.onDelete(deleted);
+    final padLost = _padLeft > padLeft ? _padLeft - padLeft : 0;
+    _padLeft = padLeft;
     final added = String.fromCharCodes(newRunes.sublist(p));
+    final deleted = oldRunes.length - p + (oldRunes.isEmpty && added.isEmpty ? padLost : 0);
+    if (deleted > 0) widget.onDelete(deleted);
     final needReset = added.isNotEmpty && _emit(added);
     if (needReset ||
-        padLeft < _pad ||
+        (padLeft < _pad && (newTyped.isEmpty || added.endsWith(' '))) ||
         (added.endsWith(' ') && _typed.runes.length > 40) ||
         _typed.runes.length > _maxBuffer) {
       reset();

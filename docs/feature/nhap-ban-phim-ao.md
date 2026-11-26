@@ -22,12 +22,12 @@ Nhận chữ từ bàn phím ảo iOS/Android (kể cả gõ tiếng Việt, xo�
 2. `updateEditingValue`:
    - Đang có vùng composing (đang gõ dấu) → chờ, chưa gửi.
    - So text mới (đã bỏ `\u200B`) với `_typed` cũ theo rune: phần chung đầu giữ nguyên, phần cũ thừa = số lần xoá, phần mới = chữ thêm.
-   - Số `\u200B` còn lại < 16 → cộng thêm số `\u200B` bị mất vào số lần xoá.
+   - Số `\u200B` giảm so với lần trước (`_padLeft`) khi bộ đệm chữ đã rỗng và lần này không thêm chữ (phím xoá thật) → cộng số `\u200B` mất vào số lần xoá. Còn chữ trong bộ đệm (giữ phím xoá iOS xoá cả từ lẫn đệm) hoặc có thêm chữ thì bỏ qua: Telex soạn lại từ có thể ăn `\u200B` (U+200B không phải ranh giới từ), vd gõ `ww` rồi `h`.
 3. Xoá → `_onDelete(count)`: có modifier và `count == 1` → `keyInput(backspace)` có Ctrl/Alt; còn lại gửi `0x7f` × count.
 4. Chữ thêm → `_emit`: tách theo xuống dòng; mỗi đoạn → `_onTyped`, mỗi dấu xuống dòng → `_onEnter`.
 5. `_onTyped`: chữ là `ư`/`Ư` và (đang alternate buffer và input vừa gửi đúng là `\x02` — `_afterTmuxPrefix`, đặt ở `_send` cho mọi input đã gửi: nút `^B`, Ctrl dính + b, phím, chuột — hoặc Ctrl/Alt đang bật) → coi là `w`/`W`, reset bộ đệm. Sau đó: có modifier và đúng 1 rune → `applyModifiers` rồi `consume`, yêu cầu reset bộ đệm; ngược lại gửi nguyên.
 6. Nút Done/Return (`performAction`) → `_onEnter` + `reset`.
-7. Reset bộ đệm khi: vừa áp modifier, vừa Enter, mất bất kỳ `\u200B` nào (`padLeft < _pad`), gõ dấu cách khi bộ đệm > 40 rune, hoặc bộ đệm > 200 rune.
+7. Reset bộ đệm khi: vừa áp modifier, vừa Enter, thiếu `\u200B` mà bộ đệm chữ đã rỗng hoặc vừa gõ dấu cách (không reset giữa từ đang soạn), gõ dấu cách khi bộ đệm > 40 rune, hoặc bộ đệm > 200 rune.
 
 ## Dữ liệu & giao thức
 
