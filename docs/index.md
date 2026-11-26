@@ -13,7 +13,7 @@ App Flutter (iOS + Android) làm terminal native cho ttyd sau ttyd-auth, kèm th
 | Giao thức với ttyd-auth/ttyd | [api_specifications.md](api_specifications.md) |
 | Kiểm thử | [testing.md](testing.md) |
 | Viết tài liệu tính năng mới | [templates/feature.md](templates/feature.md) |
-| Lịch sử thay đổi | [CHANGELOG.md](../CHANGELOG.md) |
+| Lịch sử thay đổi | `git log --oneline` |
 
 ## Sơ đồ tài liệu
 

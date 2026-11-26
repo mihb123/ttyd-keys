@@ -50,14 +50,14 @@ Làm xong một tính năng, sửa lỗi hoặc cải thiện thì cập nhật 
 
 ## Commit
 
-- Làm xong một việc (code + docs + dòng CHANGELOG, `make analyze` / `make docs-check` sạch) thì commit rồi tự `git push origin main` luôn, không chờ người dùng. Đang ở nhánh khác có việc dở (vd `multi-server`) thì làm việc mới trong worktree của `main` (`git worktree add ../ttyd-keys-main main`); việc của nhánh đó chỉ commit, push khi merge vào `main`.
+- Làm xong một việc (code + docs, `make analyze` / `make docs-check` sạch) thì commit rồi tự `git push origin main` luôn, không chờ người dùng. Đang ở nhánh khác có việc dở (vd `multi-server`) thì làm việc mới trong worktree của `main` (`git worktree add ../ttyd-keys-main main`); việc của nhánh đó chỉ commit, push khi merge vào `main`.
 - Sau push, theo dõi CI tới khi xong: `gh run list -L 3` lấy run của commit vừa push, `gh run watch <id> --exit-status`. Run hỏng thì `gh run view <id> --log-failed`, sửa, commit, push lại tới khi xanh rồi mới báo xong. Push chỉ đổi docs không khớp `on.push.paths` của `build.yml` thì không có run.
 - Nhiều agent cùng làm: phần của ai người đó tự commit. Chỉ `git add <file>` những file mình sửa (file chung thì `git add -p`); không `git add -A` / `git add .` / `git commit -a`; không commit, stash, reset, checkout thay đổi của agent khác.
 - Message một dòng theo dạng `type(scope): mô tả` (giống repo `~/central`), mô tả tiếng Việt nói người dùng thấy gì thay đổi:
   - `type`: `feat` (tính năng/cải thiện), `fix` (sửa lỗi), `docs` (chỉ tài liệu), `build` (build, CI, icon, `Makefile`, script), `refactor`, `chore`.
-  - `scope`: tên file feature trong `docs/feature/` (`nhieu-server`, `thanh-phim`, `nhap-ban-phim-ao`, `ket-noi-ttyd`, `cai-dat`, `khoa-app`, `cu-chi-terminal`), nền tảng (`ios`, `android`) hoặc `agents`, `changelog`; nhiều scope cách nhau dấu phẩy.
+  - `scope`: tên file feature trong `docs/feature/` (`nhieu-server`, `thanh-phim`, `nhap-ban-phim-ao`, `ket-noi-ttyd`, `cai-dat`, `khoa-app`, `cu-chi-terminal`), nền tảng (`ios`, `android`) hoặc `agents`; nhiều scope cách nhau dấu phẩy.
   - Vd `feat(nhieu-server): thanh tab chuyển server kiểu Ghostty`, `fix(ios,ket-noi-ttyd): cat file lớn không treo app`, `docs(agents): quy ước tên commit`.
-- Thêm dòng vào [CHANGELOG.md](CHANGELOG.md) theo định dạng đầu file đó và commit chung với thay đổi, không tách commit riêng.
+- Không ghi `CHANGELOG.md`: lịch sử thay đổi xem bằng `git log --oneline`.
 
 ## Làm cùng agy
 

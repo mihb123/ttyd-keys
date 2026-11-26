@@ -2,7 +2,7 @@
 FLUTTER ?= $(shell command -v flutter 2>/dev/null || echo $(HOME)/flutter/bin/flutter)
 NODE ?= $(or $(shell command -v node 2>/dev/null),$(lastword $(sort $(wildcard $(HOME)/.nvm/versions/node/*/bin/node))))
 MERMAID_CHECK ?= $(HOME)/.claude/tools/mermaid-check/check-mermaid.mjs
-MERMAID_DOCS = $(shell grep -rl --include='*.md' '```mermaid' docs README.md AGENTS.md CHANGELOG.md 2>/dev/null)
+MERMAID_DOCS = $(shell grep -rl --include='*.md' '```mermaid' docs README.md AGENTS.md 2>/dev/null)
 
 .PHONY: help get analyze ios-ipa android-apk install-ios install-android docs-check
 

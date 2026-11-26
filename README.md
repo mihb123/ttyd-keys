@@ -44,4 +44,4 @@ Chi tiết cài lên iPhone: [docs/deployment_guide.md](docs/deployment_guide.md
 ## Tài liệu
 
 - **Mục lục**: [docs/index.md](docs/index.md)
-- [AGENTS.md](AGENTS.md) · [Kiến trúc](docs/architecture.md) · [Giao thức](docs/api_specifications.md) · [Build](docs/deployment_guide.md) · [Kiểm thử](docs/testing.md) · [CHANGELOG](CHANGELOG.md)
+- [AGENTS.md](AGENTS.md) · [Kiến trúc](docs/architecture.md) · [Giao thức](docs/api_specifications.md) · [Build](docs/deployment_guide.md) · [Kiểm thử](docs/testing.md)
