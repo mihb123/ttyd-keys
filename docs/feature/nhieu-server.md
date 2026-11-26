@@ -19,7 +19,7 @@ Mỗi server chỉ cần đăng nhập một lần, sau đó chuyển qua lại 
 - Bấm một server (hoặc tab) để chuyển sang. Lần đầu chọn thì mới nối; từ đó kết nối được giữ, lịch sử cuộn và vị trí cuộn còn nguyên khi quay lại.
 - Nhấn giữ một server: Sửa, Ngắt kết nối (chỉ khi đang nối hoặc đã nối), Xoá server (có hộp xác nhận). Cuối sidebar có nút "+ Thêm server".
 - Menu ⋮ của server đang xem: Kết nối lại, Cài đặt, Sửa server, Xoá server.
-- Form server: Tên hiển thị (tuỳ chọn, để trống thì hiện host), Host, Username, Mật khẩu, Lệnh tự chạy. Mật khẩu luôn được lưu, không còn ô "Nhớ mật khẩu". Không cho thêm server trùng host + username.
+- Form server: Tên hiển thị (tuỳ chọn, để trống thì hiện host), Host, Username, Mật khẩu, Lệnh tự chạy; mỗi ô có ví dụ mẫu (`hintText`, nhãn luôn nổi lên trên để ví dụ hiện ngay), ô Host có dòng gợi ý dán cả link cũng được (`normalizeHost` bỏ `https://` và đường dẫn). Mật khẩu luôn được lưu, không còn ô "Nhớ mật khẩu". Không cho thêm server trùng host + username.
 - Mở app: qua Face ID/PIN rồi chỉ nối server dùng gần nhất.
 - Chưa có: nhiều tab trên cùng một server (dùng tmux), kéo để sắp xếp server, đồng bộ danh sách server giữa các máy.
 

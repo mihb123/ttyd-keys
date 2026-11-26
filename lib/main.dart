@@ -175,20 +175,33 @@ class _LoginScreenState extends State<LoginScreen> {
                       controller: _name,
                       decoration: const InputDecoration(
                         labelText: 'Tên hiển thị (tuỳ chọn)',
+                        hintText: 'vd: VPS công ty',
+                        floatingLabelBehavior: FloatingLabelBehavior.always,
                         border: OutlineInputBorder(),
                       ),
                     ),
                     const SizedBox(height: 12),
                     TextField(
                       controller: _host,
-                      decoration: const InputDecoration(labelText: 'Host', border: OutlineInputBorder()),
+                      decoration: const InputDecoration(
+                        labelText: 'Host',
+                        hintText: 'vd: ttyd.example.com',
+                        helperText: 'Tên miền trang ttyd, dán cả link https://… cũng được',
+                        floatingLabelBehavior: FloatingLabelBehavior.always,
+                        border: OutlineInputBorder(),
+                      ),
                       keyboardType: TextInputType.url,
                       autocorrect: false,
                     ),
                     const SizedBox(height: 12),
                     TextField(
                       controller: _user,
-                      decoration: const InputDecoration(labelText: 'Username', border: OutlineInputBorder()),
+                      decoration: const InputDecoration(
+                        labelText: 'Username',
+                        hintText: 'vd: admin',
+                        floatingLabelBehavior: FloatingLabelBehavior.always,
+                        border: OutlineInputBorder(),
+                      ),
                       autofillHints: const [AutofillHints.username],
                       autocorrect: false,
                       textCapitalization: TextCapitalization.none,
@@ -196,7 +209,12 @@ class _LoginScreenState extends State<LoginScreen> {
                     const SizedBox(height: 12),
                     TextField(
                       controller: _pass,
-                      decoration: const InputDecoration(labelText: 'Mật khẩu', border: OutlineInputBorder()),
+                      decoration: const InputDecoration(
+                        labelText: 'Mật khẩu',
+                        hintText: 'Mật khẩu đăng nhập ttyd',
+                        floatingLabelBehavior: FloatingLabelBehavior.always,
+                        border: OutlineInputBorder(),
+                      ),
                       autofillHints: const [AutofillHints.password],
                       obscureText: true,
                       onSubmitted: (_) => _submit(),
@@ -208,6 +226,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       decoration: const InputDecoration(
                         labelText: 'Lệnh tự chạy khi kết nối',
                         hintText: 'vd: tmux new -A -s main',
+                        floatingLabelBehavior: FloatingLabelBehavior.always,
                         border: OutlineInputBorder(),
                       ),
                       onSubmitted: (_) => _submit(),
