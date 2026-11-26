@@ -10,6 +10,58 @@ Color serverStatusColor(ServerStatus status) => switch (status) {
       ServerStatus.idle => const Color(0xFF6B7280),
     };
 
+Future<void> showServerActions(
+  BuildContext context,
+  ServerProfile server,
+  ServerStatus status, {
+  required VoidCallback onEdit,
+  required VoidCallback onDisconnect,
+  required VoidCallback onDelete,
+}) {
+  final canDisconnect = status == ServerStatus.connected || status == ServerStatus.connecting;
+  return showModalBottomSheet<void>(
+    context: context,
+    builder: (sheetContext) => SafeArea(
+      top: false,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          ListTile(
+            title: Text(server.label, overflow: TextOverflow.ellipsis),
+            subtitle: Text('${server.username}@${server.host}', overflow: TextOverflow.ellipsis),
+          ),
+          const Divider(height: 1),
+          ListTile(
+            leading: const Icon(Icons.edit_outlined),
+            title: const Text('Sửa'),
+            onTap: () {
+              Navigator.of(sheetContext).pop();
+              onEdit();
+            },
+          ),
+          if (canDisconnect)
+            ListTile(
+              leading: const Icon(Icons.link_off),
+              title: const Text('Ngắt kết nối'),
+              onTap: () {
+                Navigator.of(sheetContext).pop();
+                onDisconnect();
+              },
+            ),
+          ListTile(
+            leading: const Icon(Icons.delete_outline, color: Color(0xFFF87171)),
+            title: const Text('Xoá server', style: TextStyle(color: Color(0xFFF87171))),
+            onTap: () {
+              Navigator.of(sheetContext).pop();
+              onDelete();
+            },
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
 class ServerDrawer extends StatelessWidget {
   const ServerDrawer({
     super.key,
@@ -33,49 +85,16 @@ class ServerDrawer extends StatelessWidget {
   final VoidCallback onAdd;
 
   void _showActions(BuildContext context, ServerProfile server) {
-    final status = statusOf(server);
-    final canDisconnect = status == ServerStatus.connected || status == ServerStatus.connecting;
-    showModalBottomSheet<void>(
-      context: context,
-      builder: (sheetContext) => SafeArea(
-        top: false,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              title: Text(server.label, overflow: TextOverflow.ellipsis),
-              subtitle: Text('${server.username}@${server.host}', overflow: TextOverflow.ellipsis),
-            ),
-            const Divider(height: 1),
-            ListTile(
-              leading: const Icon(Icons.edit_outlined),
-              title: const Text('Sửa'),
-              onTap: () {
-                Navigator.of(sheetContext).pop();
-                Navigator.of(context).pop();
-                onEdit(server);
-              },
-            ),
-            if (canDisconnect)
-              ListTile(
-                leading: const Icon(Icons.link_off),
-                title: const Text('Ngắt kết nối'),
-                onTap: () {
-                  Navigator.of(sheetContext).pop();
-                  onDisconnect(server);
-                },
-              ),
-            ListTile(
-              leading: const Icon(Icons.delete_outline, color: Color(0xFFF87171)),
-              title: const Text('Xoá server', style: TextStyle(color: Color(0xFFF87171))),
-              onTap: () {
-                Navigator.of(sheetContext).pop();
-                onDelete(server);
-              },
-            ),
-          ],
-        ),
-      ),
+    showServerActions(
+      context,
+      server,
+      statusOf(server),
+      onEdit: () {
+        Navigator.of(context).pop();
+        onEdit(server);
+      },
+      onDisconnect: () => onDisconnect(server),
+      onDelete: () => onDelete(server),
     );
   }
 

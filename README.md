@@ -8,7 +8,7 @@ App Flutter (iOS + Android) làm terminal native cho ttyd sau ttyd-auth (`remote
 - **Thanh phím**: Esc, Tab, Ctrl/Alt/Shift dính, mũi tên giữ để lặp, Home/End/PgUp/PgDn, `^C ^D ^Z ^R ^L ^B ^A ^E ^U ^W`, ký tự khó gõ, dán; tuỳ chỉnh ẩn/hiện từng phím hoặc ẩn cả thanh, kèm phản hồi rung (haptic). Xem [thanh-phim.md](docs/feature/thanh-phim.md).
 - **Bàn phím ảo**: gõ tiếng Việt, xoá, Enter từ IME. Xem [nhap-ban-phim-ao.md](docs/feature/nhap-ban-phim-ao.md).
 - **Cử chỉ**: chạm terminal để bật/tắt bàn phím (thanh phím đi cùng bàn phím), vuốt dọc xem lại nội dung cũ, nhấn giữ để chọn chữ kèm 2 đầu kéo và sao chép/dán, hai ngón tay để phóng to/thu nhỏ chữ (1–24 pt). Xem [cu-chi-terminal.md](docs/feature/cu-chi-terminal.md).
-- **Nhiều server**: mỗi server đăng nhập một lần, vuốt từ mép trái mở danh sách server để chuyển qua lại, server đã mở giữ kết nối. Xem [nhieu-server.md](docs/feature/nhieu-server.md).
+- **Nhiều server**: mỗi server đăng nhập một lần, chuyển qua lại bằng sidebar vuốt từ mép trái hoặc thanh tab ở header kiểu Ghostty (chọn trong Cài đặt), server đã mở giữ kết nối. Xem [nhieu-server.md](docs/feature/nhieu-server.md).
 - **Khoá app**: tự đăng nhập bằng mật khẩu đã lưu rồi mở khoá bằng Face ID (máy không có thì mã PIN 4 số, sai 10 lần tự đăng xuất); rời app dưới 10 phút không bị hỏi lại. Xem [khoa-app.md](docs/feature/khoa-app.md).
 - **Cài đặt**: mật khẩu từng server lưu trong Keychain/Keystore, cỡ chữ, lệnh tự chạy riêng từng server (mặc định `tmux new -A -s mobile` để giữ phiên). Xem [cai-dat.md](docs/feature/cai-dat.md).
 
@@ -19,7 +19,7 @@ Flutter 3.50.1, `xterm` 4, `flutter_secure_storage`, `shared_preferences`, `loca
 ## Cấu trúc
 
 ```text
-lib/              toàn bộ code Dart (16 file, xem docs/architecture.md)
+lib/              toàn bộ code Dart (17 file, xem docs/architecture.md)
 assets/fonts/     font terminal JetBrains Mono Nerd Font Mono (OFL)
 assets/icon/      logo app (SVG gốc + PNG 1024), sinh icon bằng `dart run flutter_launcher_icons`
 scripts/          pull-build.sh: tải artifact theo commit; install-build.sh: cài lên máy qua USB

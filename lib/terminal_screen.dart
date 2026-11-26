@@ -16,6 +16,7 @@ import 'modifiers.dart';
 import 'selection_handles.dart';
 import 'server_drawer.dart';
 import 'server_session.dart';
+import 'server_tabs.dart';
 import 'settings.dart';
 import 'terminal_gestures.dart';
 import 'terminal_input.dart';
@@ -321,6 +322,24 @@ class _TerminalScreenState extends State<TerminalScreen>
   void _selectServer(ServerProfile profile) {
     if (profile.id == _activeId) return;
     _activateServer(profile);
+  }
+
+  void _closeServerTab(ServerProfile server) {
+    ServerProfile? neighbor;
+    if (server.id == _activeId) {
+      final openTabs = [
+        for (final s in _settings.servers)
+          if (s.id == _activeId || _statusOf(s) != ServerStatus.idle) s,
+      ];
+      final index = openTabs.indexWhere((s) => s.id == server.id);
+      if (index != -1 && openTabs.length > 1) {
+        neighbor = index + 1 < openTabs.length ? openTabs[index + 1] : openTabs[index - 1];
+      }
+    }
+    _sessions[server.id]?.disconnect();
+    if (neighbor != null) {
+      _activateServer(neighbor);
+    }
   }
 
   void _activateServer(ServerProfile profile, {bool connectAfterFrame = true}) {
@@ -992,6 +1011,8 @@ class _TerminalScreenState extends State<TerminalScreen>
     }
     _lastKeyboardVisible = keyboardVisible;
 
+    final useTabs = _settings.serverSwitcher == ServerSwitcher.tabs;
+
     return Scaffold(
       key: _scaffoldKey,
       backgroundColor: Colors.black,
@@ -1003,39 +1024,56 @@ class _TerminalScreenState extends State<TerminalScreen>
           _hideKeyboard();
         }
       },
-      drawer: ServerDrawer(
-        servers: _settings.servers,
-        activeServerId: _activeId,
-        statusOf: _statusOf,
-        onSelect: _selectServer,
-        onEdit: (server) => _openServerForm(server: server),
-        onDisconnect: (server) => _sessions[server.id]?.disconnect(),
-        onDelete: _confirmDeleteServer,
-        onAdd: () => _openServerForm(),
-      ),
+      drawer: useTabs
+          ? null
+          : ServerDrawer(
+              servers: _settings.servers,
+              activeServerId: _activeId,
+              statusOf: _statusOf,
+              onSelect: _selectServer,
+              onEdit: (server) => _openServerForm(server: server),
+              onDisconnect: (server) => _sessions[server.id]?.disconnect(),
+              onDelete: _confirmDeleteServer,
+              onAdd: () => _openServerForm(),
+            ),
       appBar: AppBar(
         toolbarHeight: 40,
-        titleSpacing: 4,
-        leading: IconButton(
-          tooltip: 'Danh sách server',
-          icon: const Icon(Icons.menu),
-          onPressed: () => _scaffoldKey.currentState?.openDrawer(),
-        ),
-        title: Row(
-          children: [
-            Icon(Icons.circle, size: 10, color: serverStatusColor(status)),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                session.title.isNotEmpty ? session.title : session.profile.label,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(fontSize: 14),
+        automaticallyImplyLeading: !useTabs,
+        titleSpacing: useTabs ? 0 : 4,
+        leading: useTabs
+            ? null
+            : IconButton(
+                tooltip: 'Danh sách server',
+                icon: const Icon(Icons.menu),
+                onPressed: () => _scaffoldKey.currentState?.openDrawer(),
               ),
-            ),
-          ],
-        ),
+        title: useTabs
+            ? ServerTabBar(
+                servers: _settings.servers,
+                activeServerId: _activeId,
+                statusOf: _statusOf,
+                onSelect: _selectServer,
+                onClose: _closeServerTab,
+                onEdit: (server) => _openServerForm(server: server),
+                onDisconnect: _closeServerTab,
+                onDelete: _confirmDeleteServer,
+                onAdd: () => _openServerForm(),
+              )
+            : Row(
+                children: [
+                  Icon(Icons.circle, size: 10, color: serverStatusColor(status)),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      session.title.isNotEmpty ? session.title : session.profile.label,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(fontSize: 14),
+                    ),
+                  ),
+                ],
+              ),
         actions: [
-          if (status == ServerStatus.disconnected || status == ServerStatus.idle)
+          if (!useTabs && (status == ServerStatus.disconnected || status == ServerStatus.idle))
             IconButton(tooltip: 'Kết nối lại', icon: const Icon(Icons.refresh), onPressed: _reconnect),
           PopupMenuButton<String>(
             onSelected: (v) => switch (v) {
@@ -1262,6 +1300,7 @@ class _SettingsSheet extends StatefulWidget {
 
 class _SettingsSheetState extends State<_SettingsSheet> {
   late double _fontSize = snapFontSize(widget.settings.fontSize);
+  late ServerSwitcher _serverSwitcher = widget.settings.serverSwitcher;
   late bool _showSecondKeyRow = widget.settings.showSecondKeyRow;
   late Set<String> _hiddenKeys = Set<String>.from(widget.settings.hiddenKeyBarKeys);
 
@@ -1279,6 +1318,7 @@ class _SettingsSheetState extends State<_SettingsSheet> {
   Future<void> _save() async {
     widget.settings
       ..fontSize = _fontSize
+      ..serverSwitcher = _serverSwitcher
       ..showSecondKeyRow = _showSecondKeyRow
       ..hiddenKeyBarKeys = Set<String>.from(_hiddenKeys);
     await widget.settings.save();
@@ -1309,6 +1349,26 @@ class _SettingsSheetState extends State<_SettingsSheet> {
                 max: maxTerminalFontSize,
                 divisions: terminalFontSizeDivisions,
                 onChanged: (v) => setState(() => _fontSize = snapFontSize(v)),
+              ),
+              const SizedBox(height: 8),
+              const Text('Chuyển server'),
+              const SizedBox(height: 8),
+              SegmentedButton<ServerSwitcher>(
+                showSelectedIcon: false,
+                segments: const [
+                  ButtonSegment(
+                    value: ServerSwitcher.sidebar,
+                    label: Text('Sidebar'),
+                    icon: Icon(Icons.view_sidebar_outlined),
+                  ),
+                  ButtonSegment(
+                    value: ServerSwitcher.tabs,
+                    label: Text('Thanh tab'),
+                    icon: Icon(Icons.tab),
+                  ),
+                ],
+                selected: {_serverSwitcher},
+                onSelectionChanged: (selected) => setState(() => _serverSwitcher = selected.first),
               ),
               const SizedBox(height: 8),
               SwitchListTile(

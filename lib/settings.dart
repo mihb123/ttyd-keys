@@ -6,6 +6,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 const defaultStartupCommand = 'tmux new -A -s mobile';
 const defaultHost = 'remote-ocl.mihb.site';
 
+enum ServerSwitcher { sidebar, tabs }
+
 class ServerProfile {
   ServerProfile({
     required this.id,
@@ -54,6 +56,7 @@ class ServerProfile {
 class Settings {
   Settings({
     this.fontSize = 14,
+    this.serverSwitcher = ServerSwitcher.sidebar,
     this.showSecondKeyRow = true,
     Set<String>? hiddenKeyBarKeys,
     List<ServerProfile>? servers,
@@ -62,6 +65,7 @@ class Settings {
         servers = servers ?? <ServerProfile>[];
 
   double fontSize;
+  ServerSwitcher serverSwitcher;
   bool showSecondKeyRow;
   Set<String> hiddenKeyBarKeys;
   List<ServerProfile> servers;
@@ -97,6 +101,7 @@ class Settings {
     final p = await SharedPreferences.getInstance();
     final s = Settings(
       fontSize: p.getDouble('fontSize') ?? 14,
+      serverSwitcher: ServerSwitcher.values.asNameMap()[p.getString('serverSwitcher')] ?? ServerSwitcher.sidebar,
       showSecondKeyRow: p.getBool('showSecondKeyRow') ?? p.getBool('showKeyBar') ?? true,
       hiddenKeyBarKeys: (p.getStringList('hiddenKeyBarKeys') ?? const <String>[]).toSet(),
       activeServerId: p.getString('activeServerId'),
@@ -146,6 +151,7 @@ class Settings {
   Future<void> save() async {
     final p = await SharedPreferences.getInstance();
     await p.setDouble('fontSize', fontSize);
+    await p.setString('serverSwitcher', serverSwitcher.name);
     await p.setBool('showSecondKeyRow', showSecondKeyRow);
     await p.remove('showKeyBar');
     await p.setStringList('hiddenKeyBarKeys', hiddenKeyBarKeys.toList()..sort());

@@ -5,7 +5,7 @@
 ```mermaid
 flowchart LR
     subgraph App["App Flutter (iOS/Android)"]
-        UI["LoginScreen / TerminalScreen + ServerDrawer"]
+        UI["LoginScreen / TerminalScreen + ServerDrawer / ServerTabBar"]
         Sess["ServerSession (mỗi server một)"]
         IME["TerminalInput (bàn phím ảo)"]
         Bar["KeyBar + Modifiers"]
@@ -39,7 +39,8 @@ lib/
   main.dart             entry, TtydKeysApp (chọn màn đầu), LoginScreen (thêm/sửa server), showLogin
   terminal_screen.dart  TerminalScreen: giữ các ServerSession, chuyển server, nối IME + thanh phím vào Terminal đang xem, _SettingsSheet
   server_session.dart   ServerSession: Terminal + OutputThrottle + kết nối/nối lại của một server
-  server_drawer.dart    ServerDrawer: sidebar danh sách server, thao tác Sửa/Ngắt/Xoá
+  server_drawer.dart    ServerDrawer: sidebar danh sách server; showServerActions: sheet Sửa/Ngắt/Xoá
+  server_tabs.dart      ServerTabBar: thanh tab server ở header kiểu Ghostty
   ttyd_client.dart      HTTP đăng nhập + WebSocket ttyd (chỉ dart:io)
   fixed_terminal.dart   FixedTerminal: Terminal của xterm 4 sửa ESC[1K/1J/0X ném RangeError, màu 256 ngoài dải, write không kẹt khi parser ném lỗi
   output_throttle.dart  OutputThrottle: ghi output vào Terminal theo ngân sách mỗi frame, dừng đọc socket khi tồn đọng
@@ -68,6 +69,7 @@ lib/
 | Đăng nhập / thêm / sửa server | `lib/main.dart` (`LoginScreen`) | [ket-noi-ttyd.md](feature/ket-noi-ttyd.md), [nhieu-server.md](feature/nhieu-server.md) |
 | Terminal (AppBar trạng thái, banner lỗi, terminal, thanh phím) | `lib/terminal_screen.dart` | [ket-noi-ttyd.md](feature/ket-noi-ttyd.md), [thanh-phim.md](feature/thanh-phim.md), [nhap-ban-phim-ao.md](feature/nhap-ban-phim-ao.md) |
 | Sidebar server (Drawer, vuốt từ mép trái) | `lib/server_drawer.dart` (`ServerDrawer`) | [nhieu-server.md](feature/nhieu-server.md) |
+| Thanh tab server (thay tiêu đề AppBar khi chọn Thanh tab) | `lib/server_tabs.dart` (`ServerTabBar`) | [nhieu-server.md](feature/nhieu-server.md) |
 | Cài đặt (bottom sheet) | `lib/terminal_screen.dart` (`_SettingsSheet`) | [cai-dat.md](feature/cai-dat.md) |
 | Khoá / tạo mã PIN (phủ lên Terminal bằng `Stack`) | `lib/lock_screen.dart` (`LockScreen`) | [khoa-app.md](feature/khoa-app.md) |
 

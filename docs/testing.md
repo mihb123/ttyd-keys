@@ -27,6 +27,7 @@ Chưa có thư mục `test/`. Chỗ nên thêm unit test đầu tiên (`flutter 
 | Sai mật khẩu | "Sai username hoặc mật khẩu." | [ket-noi-ttyd.md](feature/ket-noi-ttyd.md) |
 | Cập nhật từ bản một host | Server cũ thành server đầu tiên, không phải đăng nhập lại | [nhieu-server.md](feature/nhieu-server.md) |
 | Thêm server thứ 2, vuốt từ mép trái chuyển qua lại | Sidebar mở; server cũ vẫn xanh, lịch sử cuộn còn nguyên, không chạy lại lệnh tự chạy | [nhieu-server.md](feature/nhieu-server.md) |
+| Cài đặt → Chuyển server: Thanh tab; mở 3 server, bấm × tab đang xem | Header thành dải tab, không vuốt mở sidebar được; × đóng tab, chuyển sang tab bên phải; + liệt kê server chưa mở | [nhieu-server.md](feature/nhieu-server.md) |
 | Nhấn giữ server → Ngắt kết nối / Xoá server; xoá server cuối cùng | Chấm xám / server biến mất; xoá hết thì về màn đăng nhập trống | [nhieu-server.md](feature/nhieu-server.md) |
 | Đổi mật khẩu trên server rồi mở lại app | Chỉ server đó hiện form nhập mật khẩu, server khác vẫn dùng được | [nhieu-server.md](feature/nhieu-server.md) |
 | Kết nối > 5 s, tắt mạng vài giây rồi bật / đưa app xuống nền rồi mở lại | `[Mất kết nối]`, tự nối lại | [ket-noi-ttyd.md](feature/ket-noi-ttyd.md) |

@@ -7,7 +7,7 @@ Nhớ danh sách server (host, tài khoản, mật khẩu an toàn, lệnh tự 
 ## Phạm vi hiện tại
 
 - Form server (thêm/sửa): tên hiển thị, host, username, mật khẩu (luôn lưu Keychain), "Lệnh tự chạy khi kết nối" ([nhieu-server.md](nhieu-server.md)).
-- Menu ⋮ → Cài đặt (bottom sheet), dùng chung mọi server: cỡ chữ 1–24 (bước 0.5, `divisions: 46`), bật/tắt hàng phím thứ hai (`Hiện hàng phím thứ hai`) và chọn từng phím hiển thị (`Tuỳ chỉnh phím hiển thị`, [thanh-phim.md](thanh-phim.md)).
+- Menu ⋮ → Cài đặt (bottom sheet), dùng chung mọi server: cỡ chữ 1–24 (bước 0.5, `divisions: 46`), "Chuyển server" (Sidebar / Thanh tab, [nhieu-server.md](nhieu-server.md)), bật/tắt hàng phím thứ hai (`Hiện hàng phím thứ hai`) và chọn từng phím hiển thị (`Tuỳ chỉnh phím hiển thị`, [thanh-phim.md](thanh-phim.md)).
 - Hai ngón tay chụm/mở trên terminal cũng đổi và lưu cỡ chữ ([cu-chi-terminal.md](cu-chi-terminal.md)).
 - Xoá server (menu ⋮ hoặc nhấn giữ trong sidebar): đóng WS, xoá profile + mật khẩu; xoá server cuối cùng thì xoá luôn mã PIN, về màn đăng nhập.
 - Chưa có: theme sáng.
@@ -23,7 +23,7 @@ Nhớ danh sách server (host, tài khoản, mật khẩu an toàn, lệnh tự 
 
 1. `main` gọi `Settings.load()` trước `runApp`: đọc `servers`, rồi mật khẩu `password.<id>` của từng server. Chưa có key `servers` → `_migrateSingleHost` chuyển `host`/`username`/`startupCommand`/`password` cũ thành server đầu tiên (nếu có username), `save()`, xoá key cũ.
 2. Đăng nhập/sửa server thành công (`_LoginScreenState._submit`) → cập nhật `servers`, `activeServerId` → `save()`.
-3. Bottom sheet Cài đặt bấm Lưu → gán `fontSize`, `showSecondKeyRow`, `hiddenKeyBarKeys` → `save()` → `TerminalScreen` `setState` để vẽ lại.
+3. Bottom sheet Cài đặt bấm Lưu → gán `fontSize`, `serverSwitcher`, `showSecondKeyRow`, `hiddenKeyBarKeys` → `save()` → `TerminalScreen` `setState` để vẽ lại.
 4. Chuyển server → `activeServerId` → `save()`.
 5. Đăng xuất từ màn khoá → `forgetAllPasswords()` → `save()` → `AppLock.clear()` (xoá `pinHash`, `pinFails`) → màn đăng nhập điền sẵn server gần nhất.
 6. Tự đăng nhập lại thất bại vì sai mật khẩu → `forgetPassword(server)` của riêng server đó ([ket-noi-ttyd.md](ket-noi-ttyd.md)).
@@ -34,6 +34,7 @@ Nhớ danh sách server (host, tài khoản, mật khẩu an toàn, lệnh tự 
 |---|---|---|---|
 | `servers` | SharedPreferences | `[]` | JSON list `{id, name, host, username, startupCommand}`; host không scheme, không path; form thêm server đầu tiên điền sẵn `defaultHost` = `remote-ocl.mihb.site` |
 | `activeServerId` | SharedPreferences | — | Server dùng gần nhất, mở app thì nối server này |
+| `serverSwitcher` | SharedPreferences | `sidebar` | Cách chuyển server: `sidebar` hoặc `tabs` (`ServerSwitcher`); giá trị lạ coi là `sidebar` |
 | `fontSize` | SharedPreferences | `14` | Cỡ chữ terminal (1–24 pt) |
 | `showSecondKeyRow` | SharedPreferences | `true` | Hiện hàng 2 của thanh phím; chưa có key này thì đọc key cũ `showKeyBar` (`save()` xoá key cũ) |
 | `hiddenKeyBarKeys` | SharedPreferences | `[]` | Danh sách id phím bị ẩn trên thanh phím (`keyBarCatalog`) |
